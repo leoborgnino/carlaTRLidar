@@ -618,6 +618,25 @@ float CaService::ComputeSpeed()
     return boost::algorithm::clamp(speed + mRandomEngine->GetNormalDistribution(Mean, VelocityDeviation), 0.0f, std::numeric_limits<float>::max());
 }
 
+// Returns the angular velocity of Actor, expressed in the frame of Actor
+FVector CaService::FIMU_GetActorAngularVelocityInRadians(
+    AActor &Actor)
+{
+  const auto RootComponent = Cast<UPrimitiveComponent>(Actor.GetRootComponent());
+
+  FVector AngularVelocity;
+
+  if (RootComponent != nullptr) {
+      const FQuat ActorGlobalRotation = RootComponent->GetComponentTransform().GetRotation();
+      const FVector GlobalAngularVelocity = RootComponent->GetPhysicsAngularVelocityInRadians();
+      AngularVelocity = ActorGlobalRotation.UnrotateVector(GlobalAngularVelocity);
+  } else {
+      AngularVelocity = FVector::ZeroVector;
+  }
+
+  return AngularVelocity;
+}
+
 float CaService::ComputeYawRate()
 {
     check(mActorOwner != nullptr);

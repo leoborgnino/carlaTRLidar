@@ -51,15 +51,16 @@ namespace data {
 
   class LidarDetection {
     public:
-      geom::Location point;
-      float intensity;
-
+    geom::Location point;
+    float intensity;
+    std::vector<float> time_signal;
+    
       LidarDetection() :
-          point(0.0f, 0.0f, 0.0f), intensity{0.0f} { }
+	point(0.0f, 0.0f, 0.0f), intensity{0.0f}, time_signal{1.0f,2.0f} { }
       LidarDetection(float x, float y, float z, float intensity) :
-          point(x, y, z), intensity{intensity} { }
+	point(x, y, z), intensity{intensity}, time_signal{1.0f,2.0f} { }
       LidarDetection(geom::Location p, float intensity) :
-          point(p), intensity{intensity} { }
+	point(p), intensity{intensity}, time_signal{1.0f,2.0f}  { }
 
       void WritePlyHeaderInfo(std::ostream& out) const{
         out << "property float32 x\n" \
@@ -69,7 +70,9 @@ namespace data {
       }
 
       void WriteDetection(std::ostream& out) const{
-        out << point.x << ' ' << point.y << ' ' << point.z << ' ' << intensity;
+        out << point.x << ' ' << point.y << ' ' << point.z << ' ' << intensity << ' ';
+	for (auto& i : time_signal)
+	  out << i;	
       }
   };
 
@@ -93,6 +96,10 @@ namespace data {
 
       _points.clear();
       _points.reserve(total_points * 4);
+
+      // FIXME: Remove and create new data
+      _time_resolved_signals.clear();
+      _time_resolved_signals.reserve(total_points);
     }
 
     void WritePointSync(LidarDetection &detection) {
@@ -100,6 +107,8 @@ namespace data {
       _points.emplace_back(detection.point.y);
       _points.emplace_back(detection.point.z);
       _points.emplace_back(detection.intensity);
+      for (auto& i : detection.time_signal)
+	      _time_resolved_signals.emplace_back(i);
     }
 
     virtual void WritePointSync(SemanticLidarDetection &detection) {
@@ -109,6 +118,8 @@ namespace data {
 
   private:
     std::vector<float> _points;
+    // FIXME: Remove and create new data
+    std::vector<float> _time_resolved_signals;
 
     friend class s11n::LidarSerializer;
     friend class s11n::LidarHeaderView;

@@ -981,6 +981,145 @@ void UActorBlueprintFunctionLibrary::MakeLidarDefinition(
   StdDevLidar.Id = TEXT("noise_stddev");
   StdDevLidar.Type = EActorAttributeType::Float;
   StdDevLidar.RecommendedValues = { TEXT("0.0") };
+  // LiDAR Trasceptor
+  //params.LAMBDA0 = 950e-9;
+  FActorVariation LAMBDA0;
+  LAMBDA0.Id = TEXT("lambda_laser");
+  LAMBDA0.Type = EActorAttributeType::Float;
+  LAMBDA0.RecommendedValues = { TEXT("950e-9") };
+  //params.MAX_RANGE =  50;
+  FActorVariation MAX_RANGE;
+  MAX_RANGE.Id = TEXT("max_range");
+  MAX_RANGE.Type = EActorAttributeType::Float;
+  MAX_RANGE.RecommendedValues = { TEXT("50.0") };
+  //params.DEBUG_GLOBAL = false;
+  FActorVariation DEBUG_GLOBAL;
+  DEBUG_GLOBAL.Id = TEXT("debug_global");
+  DEBUG_GLOBAL.Type = EActorAttributeType::Bool;
+  DEBUG_GLOBAL.RecommendedValues = { TEXT("false") };
+  //params.LOG_TX  = false ;
+  FActorVariation LOG_TX;
+  LOG_TX.Id = TEXT("log_tx");
+  LOG_TX.Type = EActorAttributeType::Bool;
+  LOG_TX.RecommendedValues = { TEXT("false") };
+  //params.LOG_RX  = false ;
+  FActorVariation LOG_RX;
+  LOG_RX.Id = TEXT("log_rx");
+  LOG_RX.Type = EActorAttributeType::Bool;
+  LOG_RX.RecommendedValues = { TEXT("false") };
+  //params.LOG_CHANNEL  = false ;
+  FActorVariation LOG_CHANNEL;
+  LOG_CHANNEL.Id = TEXT("log_channel");
+  LOG_CHANNEL.Type = EActorAttributeType::Bool;
+  LOG_CHANNEL.RecommendedValues = { TEXT("false") };
+  //params.PTX  = 1e-3 ;
+  FActorVariation PTX;
+  PTX.Id = TEXT("power_tx");
+  PTX.Type = EActorAttributeType::Float;
+  PTX.RecommendedValues = { TEXT("50e-3") };
+  //params.TAU_SIGNAL = 5e-9 ;
+  FActorVariation TAU_SIGNAL;
+  TAU_SIGNAL.Id = TEXT("tau_signal");
+  TAU_SIGNAL.Type = EActorAttributeType::Float;
+  TAU_SIGNAL.RecommendedValues = { TEXT("5e-9") };
+  //params.TX_FS = 2e9 ;
+  FActorVariation TX_FS;
+  TX_FS.Id = TEXT("tx_fs");
+  TX_FS.Type = EActorAttributeType::Float;
+  TX_FS.RecommendedValues = { TEXT("2e9") };
+  //params.TX_NOS = 2 ;
+  FActorVariation TX_NOS;
+  TX_NOS.Id = TEXT("tx_nos");
+  TX_NOS.Type = EActorAttributeType::Int;
+  TX_NOS.RecommendedValues = { TEXT("2") };
+  //params.ARX = 1.592e-3 ;
+  FActorVariation ARX;
+  ARX.Id = TEXT("arx");
+  ARX.Type = EActorAttributeType::Float;
+  ARX.RecommendedValues = { TEXT("1.592e-3") };
+  //params.CH_FS = 2e9 ;
+  FActorVariation CH_FS;
+  CH_FS.Id = TEXT("ch_fs");
+  CH_FS.Type = EActorAttributeType::Float;
+  CH_FS.RecommendedValues = { TEXT("2e9") };
+  //params.CH_NOS = 2 ;
+  FActorVariation CH_NOS;
+  CH_NOS.Id = TEXT("ch_nos");
+  CH_NOS.Type = EActorAttributeType::Int;
+  CH_NOS.RecommendedValues = { TEXT("2") };
+  //params.PRX = 1 ;
+  FActorVariation PRX;
+  PRX.Id = TEXT("power_rx");
+  PRX.Type = EActorAttributeType::Float;
+  PRX.RecommendedValues = { TEXT("1") };
+  //params.RPD = 0.8 ;
+  FActorVariation RPD;
+  RPD.Id = TEXT("rpd_rx");
+  RPD.Type = EActorAttributeType::Float;
+  RPD.RecommendedValues = { TEXT("0.8") };
+  //params.RX_FS = 2e9 ;
+  FActorVariation RX_FS;
+  RX_FS.Id = TEXT("rx_fs");
+  RX_FS.Type = EActorAttributeType::Float;
+  RX_FS.RecommendedValues = { TEXT("2e9") };
+  //params.RX_NOS = 2 ; 
+  FActorVariation RX_NOS;
+  RX_NOS.Id = TEXT("tx_nos");
+  RX_NOS.Type = EActorAttributeType::Int;
+  RX_NOS.RecommendedValues = { TEXT("2") };
+  FActorVariation TRANS_ON;
+  TRANS_ON.Id = TEXT("model_transceptor");
+  TRANS_ON.Type = EActorAttributeType::Bool;
+  TRANS_ON.RecommendedValues = { TEXT("false") };
+  FActorVariation INTENSITY_CALC;
+  INTENSITY_CALC.Id = TEXT("model_intensity");
+  INTENSITY_CALC.Type = EActorAttributeType::Bool;
+  INTENSITY_CALC.RecommendedValues = { TEXT("false") };
+   // Model Angle of Incidence in intensity.
+  FActorVariation ModelAngleofIncidence;
+  ModelAngleofIncidence.Id = TEXT("model_angle");
+  ModelAngleofIncidence.Type = EActorAttributeType::Bool;
+  ModelAngleofIncidence.RecommendedValues = { TEXT("false") };
+  // Model Material in intensity.
+  FActorVariation ModelMaterial;
+  ModelMaterial.Id = TEXT("model_material");
+  ModelMaterial.Type = EActorAttributeType::Bool;
+  ModelMaterial.RecommendedValues = { TEXT("false") };
+    // Model Material in intensity.
+  FActorVariation ModelMultipleReturn;
+  ModelMultipleReturn.Id = TEXT("model_multiple_return");
+  ModelMultipleReturn.Type = EActorAttributeType::Bool;
+  ModelMultipleReturn.RecommendedValues = { TEXT("false") };
+  // Max Number of Returns
+  FActorVariation NumReturnsMax;
+  NumReturnsMax.Id = TEXT("num_max_returns");
+  NumReturnsMax.Type = EActorAttributeType::Int;
+  NumReturnsMax.RecommendedValues = { TEXT("2") };
+  // Noise in intensity.
+  FActorVariation StdDevIntensity;
+  StdDevIntensity.Id = TEXT("noise_stddev_intensity");
+  StdDevIntensity.Type = EActorAttributeType::Float;
+  StdDevIntensity.RecommendedValues = { TEXT("0.0") };
+  // Model Reflectance limits function
+  FActorVariation ModelReflectanceLimitsFunction;
+  ModelReflectanceLimitsFunction.Id = TEXT("model_reflectance_limits_function");
+  ModelReflectanceLimitsFunction.Type = EActorAttributeType::Bool;
+  ModelReflectanceLimitsFunction.RecommendedValues = { TEXT("false") };
+  // Coefficient a of reflectance limits function-> R(d) = a + b.d^2
+  FActorVariation ReflectanceLimitsFunctionCoeffA;
+  ReflectanceLimitsFunctionCoeffA.Id = TEXT("reflectance_limits_function_coeff_a");
+  ReflectanceLimitsFunctionCoeffA.Type = EActorAttributeType::Float;
+  ReflectanceLimitsFunctionCoeffA.RecommendedValues = { TEXT("0.0") };
+  // Coefficient b of reflectance limits function-> R(d) = a + b.d^2
+  FActorVariation ReflectanceLimitsFunctionCoeffB;
+  ReflectanceLimitsFunctionCoeffB.Id = TEXT("reflectance_limits_function_coeff_b");
+  ReflectanceLimitsFunctionCoeffB.Type = EActorAttributeType::Float;
+  ReflectanceLimitsFunctionCoeffB.RecommendedValues = { TEXT("0.0") };
+  // Model HDL64 lasers groups
+  FActorVariation ModelHDL64LasersGroups;
+  ModelHDL64LasersGroups.Id = TEXT("model_HDL64_lasers_groups");
+  ModelHDL64LasersGroups.Type = EActorAttributeType::Bool;
+  ModelHDL64LasersGroups.RecommendedValues = { TEXT("false") };
 
   if (Id == "ray_cast") {
     Definition.Variations.Append({
@@ -996,6 +1135,15 @@ void UActorBlueprintFunctionLibrary::MakeLidarDefinition(
       DropOffIntensityLimit,
       DropOffAtZeroIntensity,
       StdDevLidar,
+      ModelAngleofIncidence,
+      ModelMaterial,
+      ModelMultipleReturn,
+      NumReturnsMax,
+      StdDevIntensity,
+      ModelReflectanceLimitsFunction,
+      ReflectanceLimitsFunctionCoeffA,
+      ReflectanceLimitsFunctionCoeffB,
+      ModelHDL64LasersGroups,
       HorizontalFOV});
   }
   else if (Id == "ray_cast_semantic") {
@@ -1006,7 +1154,50 @@ void UActorBlueprintFunctionLibrary::MakeLidarDefinition(
       Frequency,
       UpperFOV,
       LowerFOV,
+      ModelAngleofIncidence,
+      ModelMaterial,
+      ModelMultipleReturn,
+      NumReturnsMax,
       HorizontalFOV});
+  }
+  else if (Id == "ray_cast_time_resolved"){
+    Definition.Variations.Append({
+      Channels,
+      Range,
+      PointsPerSecond,
+      Frequency,
+      UpperFOV,
+      LowerFOV,
+      AtmospAttenRate,
+      NoiseSeed,
+      DropOffGenRate,
+      DropOffIntensityLimit,
+      DropOffAtZeroIntensity,
+      StdDevLidar,
+      HorizontalFOV,
+      ModelAngleofIncidence,
+      ModelMaterial,
+      ModelMultipleReturn,
+      NumReturnsMax,
+      LAMBDA0,
+      MAX_RANGE,
+      DEBUG_GLOBAL,
+      LOG_TX,
+      LOG_RX,
+      LOG_CHANNEL,
+      PTX,
+      TAU_SIGNAL,
+      TX_FS,
+      TX_NOS,
+      ARX,
+      CH_FS,
+      CH_NOS,
+      PRX,
+      RPD,
+      RX_FS,
+      RX_NOS,
+      TRANS_ON,     
+      INTENSITY_CALC});
   }
   else {
     DEBUG_ASSERT(false);
@@ -2042,6 +2233,62 @@ void UActorBlueprintFunctionLibrary::SetLidar(
       RetrieveActorAttributeToFloat("dropoff_zero_intensity", Description.Variations, Lidar.DropOffAtZeroIntensity);
   Lidar.NoiseStdDev =
       RetrieveActorAttributeToFloat("noise_stddev", Description.Variations, Lidar.NoiseStdDev);
+  Lidar.LAMBDA0 =
+    RetrieveActorAttributeToFloat("lambda_laser", Description.Variations, Lidar.LAMBDA0);
+  Lidar.MAX_RANGE =
+    RetrieveActorAttributeToFloat("max_range", Description.Variations, Lidar.MAX_RANGE);
+  Lidar.DEBUG_GLOBAL =
+    RetrieveActorAttributeToBool("debug_global", Description.Variations, Lidar.DEBUG_GLOBAL);
+  Lidar.LOG_TX =
+    RetrieveActorAttributeToBool("log_tx", Description.Variations, Lidar.LOG_TX);
+  Lidar.LOG_RX =
+    RetrieveActorAttributeToBool("log_rx", Description.Variations, Lidar.LOG_RX);
+  Lidar.LOG_CHANNEL =
+    RetrieveActorAttributeToBool("log_channel", Description.Variations, Lidar.LOG_CHANNEL);
+  Lidar.PTX =
+    RetrieveActorAttributeToFloat("power_tx", Description.Variations, Lidar.PTX);
+  Lidar.TX_FS =
+    RetrieveActorAttributeToFloat("tx_fs", Description.Variations, Lidar.TX_FS);
+  Lidar.TX_NOS =
+    RetrieveActorAttributeToInt("tx_nos", Description.Variations, Lidar.TX_NOS);
+  Lidar.ARX =
+    RetrieveActorAttributeToFloat("arx", Description.Variations, Lidar.ARX);
+  Lidar.CH_FS =
+    RetrieveActorAttributeToFloat("ch_fs", Description.Variations, Lidar.CH_FS);
+  Lidar.CH_NOS =
+    RetrieveActorAttributeToInt("ch_nos", Description.Variations, Lidar.CH_NOS);
+  Lidar.PRX =
+    RetrieveActorAttributeToFloat("power_rx", Description.Variations, Lidar.PRX);
+  Lidar.RPD =
+    RetrieveActorAttributeToFloat("rpd_rx", Description.Variations, Lidar.RPD);
+  Lidar.RX_FS =
+    RetrieveActorAttributeToFloat("rx_fs", Description.Variations, Lidar.RX_FS);
+  Lidar.RX_NOS =
+    RetrieveActorAttributeToInt("rx_nos", Description.Variations, Lidar.RX_NOS);
+  Lidar.TRANS_ON =
+    RetrieveActorAttributeToBool("model_transceptor", Description.Variations, Lidar.TRANS_ON);
+  Lidar.INTENSITY_CALC =
+    RetrieveActorAttributeToBool("model_intensity", Description.Variations, Lidar.INTENSITY_CALC);
+  Lidar.ModelAngleofIncidence =
+      RetrieveActorAttributeToBool("model_angle", Description.Variations, Lidar.ModelAngleofIncidence);
+  Lidar.ModelMaterial =
+      RetrieveActorAttributeToBool("model_material", Description.Variations, Lidar.ModelMaterial);
+  Lidar.ModelMultipleReturn =
+      RetrieveActorAttributeToBool("model_multiple_return", Description.Variations, Lidar.ModelMultipleReturn);      
+  Lidar.NumReturnsMax =
+      RetrieveActorAttributeToBool("num_max_returns", Description.Variations, Lidar.NumReturnsMax);      
+  Lidar.NoiseStdDev =
+      RetrieveActorAttributeToFloat("noise_stddev", Description.Variations, Lidar.NoiseStdDev);
+  Lidar.NoiseStdDevIntensity = 
+      RetrieveActorAttributeToFloat("noise_stddev_intensity", Description.Variations, Lidar.NoiseStdDevIntensity);
+  Lidar.ModelReflectanceLimitsFunction =
+      RetrieveActorAttributeToBool("model_reflectance_limits_function", Description.Variations, Lidar.ModelReflectanceLimitsFunction);
+  Lidar.ReflectanceLimitsFunctionCoeffA =
+      RetrieveActorAttributeToFloat("reflectance_limits_function_coeff_a", Description.Variations, Lidar.ReflectanceLimitsFunctionCoeffA);
+  Lidar.ReflectanceLimitsFunctionCoeffB =
+      RetrieveActorAttributeToFloat("reflectance_limits_function_coeff_b", Description.Variations, Lidar.ReflectanceLimitsFunctionCoeffB);
+  Lidar.ModelHDL64LasersGroups =
+      RetrieveActorAttributeToBool("model_HDL64_lasers_groups", Description.Variations, Lidar.ModelHDL64LasersGroups);
 }
 
 void UActorBlueprintFunctionLibrary::SetGnss(

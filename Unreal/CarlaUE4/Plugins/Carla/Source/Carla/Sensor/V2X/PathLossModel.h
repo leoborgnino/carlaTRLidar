@@ -8,6 +8,7 @@
 
 #include <vector>
 
+#include "DrawDebugHelpers.h"
 
 using ActorPowerMap = std::map<AActor *, float>;
 using ActorPowerPair = std::pair<AActor *, float>;

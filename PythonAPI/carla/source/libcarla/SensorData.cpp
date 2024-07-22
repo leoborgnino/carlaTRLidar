@@ -153,8 +153,11 @@ namespace data {
     out << "LidarDetection(x=" << std::to_string(det.point.x)
         << ", y=" << std::to_string(det.point.y)
         << ", z=" << std::to_string(det.point.z)
-        << ", intensity=" << std::to_string(det.intensity)
-        << ')';
+	<< ", intensity=" << std::to_string(det.intensity);
+    out << ", time_signal=" ;
+      for (auto& i : det.time_signal)
+	out << " " << i;
+      out << ')';
     return out;
   }
 
@@ -603,6 +606,7 @@ void export_sensor_data() {
   class_<csd::LidarDetection>("LidarDetection")
     .def_readwrite("point", &csd::LidarDetection::point)
     .def_readwrite("intensity", &csd::LidarDetection::intensity)
+    .def_readwrite("time_signal", &csd::LidarDetection::time_signal)
     .def(self_ns::str(self_ns::self))
   ;
 

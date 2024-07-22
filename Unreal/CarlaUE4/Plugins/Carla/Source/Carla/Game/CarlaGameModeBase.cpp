@@ -18,6 +18,7 @@
 #include "Vehicle/VehicleSpawnPoint.h"
 #include "Util/BoundingBoxCalculator.h"
 #include "EngineUtils.h"
+#include "DrawDebugHelpers.h"
 
 #include <compiler/disable-ue4-macros.h>
 #include "carla/opendrive/OpenDriveParser.h"

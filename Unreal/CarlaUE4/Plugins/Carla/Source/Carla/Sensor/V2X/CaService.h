@@ -11,6 +11,7 @@
 #include "Carla/Actor/ActorDefinition.h"
 #include "Carla/Actor/ActorDescription.h"
 #include "Carla/Vehicle/CarlaWheeledVehicle.h"
+#include "Carla/Game/CarlaStatics.h"
 #include "carla/geom/Math.h"
 #include "carla/geom/GeoLocation.h"
 #include <vector>
