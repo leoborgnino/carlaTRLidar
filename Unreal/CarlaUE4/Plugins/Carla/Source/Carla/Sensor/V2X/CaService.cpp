@@ -619,7 +619,7 @@ float CaService::ComputeSpeed()
 }
 
 // Returns the angular velocity of Actor, expressed in the frame of Actor
-FVector CaService::FIMU_GetActorAngularVelocityInRadians(
+FVector CaService::FIMU_GetActorAAngularVelocityInRadians(
     AActor &Actor)
 {
   const auto RootComponent = Cast<UPrimitiveComponent>(Actor.GetRootComponent());
@@ -641,7 +641,7 @@ float CaService::ComputeYawRate()
 {
     check(mActorOwner != nullptr);
     const FVector AngularVelocity =
-        FIMU_GetActorAngularVelocityInRadians(*mActorOwner);
+        FIMU_GetActorAAngularVelocityInRadians(*mActorOwner);
 
     const FQuat SensorLocalRotation =
         mActorOwner->GetRootComponent()->GetRelativeTransform().GetRotation();

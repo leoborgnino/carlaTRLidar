@@ -75,6 +75,8 @@ private:
   void GenerateCamMessage(float DeltaTime);
   ITSContainer::StationType_t GetStationType();
 
+  FVector FIMU_GetActorAAngularVelocityInRadians(AActor &Actor);
+
   float GetHeading();
   long GetVehicleRole();
 
