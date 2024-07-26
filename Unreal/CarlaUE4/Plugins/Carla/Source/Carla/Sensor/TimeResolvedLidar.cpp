@@ -320,7 +320,7 @@ ATimeResolvedLidar::FDetection ATimeResolvedLidar::ComputeDetection(const FHitRe
   void ATimeResolvedLidar::LoadReflectivityMapFromJson(){
 
     //path del archivo json
-    const FString FilePath = FPaths::ProjectDir() + "/LidarModelFiles/materials.json";
+    const FString FilePath = FPaths::ProjectDir() + "../CARLA_scripts/LidarModelFiles/materials.json";
   
     //const FString JsonFilePath = FPaths::ProjectContentDir() + "/JsonFiles/materials.json";
 
@@ -360,7 +360,7 @@ ATimeResolvedLidar::FDetection ATimeResolvedLidar::ComputeDetection(const FHitRe
   void ATimeResolvedLidar::LoadActorsList(){
 
     //path del archivo json
-    const FString FilePath = FPaths::ProjectDir() + "/LidarModelFiles/vehicles.json";
+    const FString FilePath = FPaths::ProjectDir() + "../CARLA_scripts/LidarModelFiles/materials.json";
   
     //const FString JsonFilePath = FPaths::ProjectContentDir() + "/JsonFiles/materials.json";
 

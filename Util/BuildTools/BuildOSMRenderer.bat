@@ -1,4 +1,4 @@
-@echo off
+rem @echo off
 setlocal enabledelayedexpansion 
 
 set LIBOSMSCOUT_REPO=https://github.com/Framstag/libosmscout

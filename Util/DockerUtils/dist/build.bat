@@ -1,4 +1,4 @@
-@echo off
+rem @echo off
 
 if exist "crosswalks.obj" del crosswalks.obj
 

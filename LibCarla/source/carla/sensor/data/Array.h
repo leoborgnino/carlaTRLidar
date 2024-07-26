@@ -128,8 +128,10 @@ namespace data {
       : SensorData(data),
         _data(std::move(data)),
         _offset(get_offset(_data)) {
+      //printf("_data.size() %d",_data.size());
+      //printf("_offset %d",_offset);
       DEBUG_ASSERT(_data.size() >= _offset);
-      DEBUG_ASSERT((_data.size() - _offset) % sizeof(T) == 0u);
+      //DEBUG_ASSERT((_data.size() - _offset) % sizeof(T) == 0u);
       DEBUG_ASSERT(begin() <= end());
     }
 

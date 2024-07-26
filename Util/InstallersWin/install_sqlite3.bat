@@ -1,4 +1,4 @@
-REM @echo off
+REM rem @echo off
 setlocal
 
 rem BAT script that downloads and installs a ready to use

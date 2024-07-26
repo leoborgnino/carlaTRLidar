@@ -1,4 +1,4 @@
-@echo off
+rem @echo off
 setlocal
 
 rem BAT script that creates the client python api of LibCarla (carla.org).

@@ -1,4 +1,4 @@
-@echo off
+rem @echo off
 setlocal enabledelayedexpansion
 
 rem BAT script that downloads and installs a ready to use

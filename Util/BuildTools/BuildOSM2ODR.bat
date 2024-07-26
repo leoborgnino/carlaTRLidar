@@ -1,4 +1,4 @@
-@echo off
+rem @echo off
 setlocal enabledelayedexpansion
 
 rem BAT script that creates the library for conversion from OSM to OpenDRIVE (carla.org).

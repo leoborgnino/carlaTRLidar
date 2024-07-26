@@ -1,4 +1,4 @@
-@echo off
+rem @echo off
 setlocal
 
 rem BAT script that creates the client and the server of LibCarla (carla.org).

@@ -1,4 +1,4 @@
-@echo off
+rem @echo off
 setlocal
 
 rem BAT script that downloads and installs Fast-DDS library

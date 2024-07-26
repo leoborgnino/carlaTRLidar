@@ -71,8 +71,8 @@ namespace data {
 
       void WriteDetection(std::ostream& out) const{
         out << point.x << ' ' << point.y << ' ' << point.z << ' ' << intensity << ' ';
-	for (auto& i : time_signal)
-	  out << i;	
+	      for (auto& i : time_signal)
+	        out << i;	
       }
   };
 

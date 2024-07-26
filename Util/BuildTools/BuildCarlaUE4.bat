@@ -1,4 +1,4 @@
-@echo off
+rem rem @echo off
 setlocal enabledelayedexpansion
 
 rem BAT script that creates the binaries for Carla (carla.org).
