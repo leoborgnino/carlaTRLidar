@@ -1032,6 +1032,21 @@ void UActorBlueprintFunctionLibrary::MakeLidarDefinition(
   TX_NOS.Id = TEXT("tx_nos");
   TX_NOS.Type = EActorAttributeType::Int;
   TX_NOS.RecommendedValues = { TEXT("2") };
+  // params.PULSE_SHAPE = 0;
+  FActorVariation PULSE_SHAPE;
+  PULSE_SHAPE.Id = TEXT("tx_pulse_shape");
+  PULSE_SHAPE.Type = EActorAttributeType::Int;
+  PULSE_SHAPE.RecommendedValues = { TEXT("0") };
+  // params.F_BW = 1e8;
+  FActorVariation F_BW;
+  F_BW.Id = TEXT("tx_f_bw");
+  F_BW.Type = EActorAttributeType::Float;
+  F_BW.RecommendedValues = { TEXT("1e8") };
+  // params.F_MIN = 0;
+  FActorVariation F_MIN;
+  F_MIN.Id = TEXT("tx_f_min");
+  F_MIN.Type = EActorAttributeType::Float;
+  F_MIN.RecommendedValues = { TEXT("0") };
   //params.ARX = 1.592e-3 ;
   FActorVariation ARX;
   ARX.Id = TEXT("arx");
@@ -1064,7 +1079,7 @@ void UActorBlueprintFunctionLibrary::MakeLidarDefinition(
   RX_FS.RecommendedValues = { TEXT("2e9") };
   //params.RX_NOS = 2 ; 
   FActorVariation RX_NOS;
-  RX_NOS.Id = TEXT("tx_nos");
+  RX_NOS.Id = TEXT("rx_nos");
   RX_NOS.Type = EActorAttributeType::Int;
   RX_NOS.RecommendedValues = { TEXT("2") };
   FActorVariation TRANS_ON;
@@ -1189,6 +1204,9 @@ void UActorBlueprintFunctionLibrary::MakeLidarDefinition(
       TAU_SIGNAL,
       TX_FS,
       TX_NOS,
+      PULSE_SHAPE,
+      F_BW,
+      F_MIN,
       ARX,
       CH_FS,
       CH_NOS,
@@ -2251,6 +2269,12 @@ void UActorBlueprintFunctionLibrary::SetLidar(
     RetrieveActorAttributeToFloat("tx_fs", Description.Variations, Lidar.TX_FS);
   Lidar.TX_NOS =
     RetrieveActorAttributeToInt("tx_nos", Description.Variations, Lidar.TX_NOS);
+  Lidar.PULSE_SHAPE =
+    RetrieveActorAttributeToInt("tx_pulse_shape", Description.Variations, Lidar.PULSE_SHAPE);
+  Lidar.F_BW =
+    RetrieveActorAttributeToFloat("tx_f_bw", Description.Variations, Lidar.F_BW);
+  Lidar.F_MIN =
+    RetrieveActorAttributeToFloat("tx_f_min", Description.Variations, Lidar.F_MIN);
   Lidar.ARX =
     RetrieveActorAttributeToFloat("arx", Description.Variations, Lidar.ARX);
   Lidar.CH_FS =
@@ -2276,7 +2300,7 @@ void UActorBlueprintFunctionLibrary::SetLidar(
   Lidar.ModelMultipleReturn =
       RetrieveActorAttributeToBool("model_multiple_return", Description.Variations, Lidar.ModelMultipleReturn);      
   Lidar.NumReturnsMax =
-      RetrieveActorAttributeToBool("num_max_returns", Description.Variations, Lidar.NumReturnsMax);      
+      RetrieveActorAttributeToInt("num_max_returns", Description.Variations, Lidar.NumReturnsMax);      
   Lidar.NoiseStdDev =
       RetrieveActorAttributeToFloat("noise_stddev", Description.Variations, Lidar.NoiseStdDev);
   Lidar.NoiseStdDevIntensity = 

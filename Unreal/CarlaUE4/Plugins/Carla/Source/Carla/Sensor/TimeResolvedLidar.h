@@ -7,6 +7,9 @@
 #pragma once
 
 #include <vector>
+#include <string>
+#include <sstream>
+#include <iostream>
 
 #include "Carla/Actor/ActorDefinition.h"
 #include "Carla/Sensor/LidarDescription.h"
@@ -56,7 +59,7 @@ private:
   bool PostprocessDetection(FDetection& Detection) const;
 
   void ComputeAndSaveDetections(const FTransform& SensorTransform) override;
-  bool WriteFile(FString Filename, FString String);
+  bool WriteFile(FString Filename, FString String) const;
 
   FLidarData LidarData;
 

@@ -64,12 +64,14 @@ vector<float> ChannelLidar::run(vector<float> channel_input, float range, float 
   
   // Multiplicación del vector por la ganancia del canal
   transform(channel_output.begin(), channel_output.end(), channel_output.begin(),
-	    [&power_gain](float element) { return element *= sqrt(power_gain); });
+	          [&power_gain](float element) { return element *= sqrt(power_gain); });
 
   // Desplazamiento según el retardo
   // Warning: Posible bug porque es un shift circular
-  rotate(channel_output.begin(), channel_output.begin()+channel_output.size()-delay_samples-1, channel_output.end());
-  
+  //rotate(channel_output.begin(), channel_output.begin()+channel_output.size()-delay_samples, channel_output.end());
+  channel_output.insert(channel_output.begin(), delay_samples, 0);
+  channel_output.erase(channel_output.end() - delay_samples, channel_output.end());
+
   // Warning: Faltaría el desplazamiento de la fase por ahora solo real
   
   return channel_output;

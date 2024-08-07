@@ -36,6 +36,7 @@ int  TxLidarPulsed::init(parametersLiDAR *params){
     FS = params->TX_FS;
     NOS = params->TX_NOS;
     POWER_TX = params->PTX;
+    PULSE_SHAPE = params->PULSE_SHAPE;
     return 0;
 };
 
@@ -47,16 +48,47 @@ vector<float> TxLidarPulsed::run()
   //cout << MAX_RANGE << LIGHT_SPEED << FS << NOS << endl;
   int LEN_TOTAL = int((2*MAX_RANGE/LIGHT_SPEED)*FS*NOS); // Tiempo Máximo * Frecuencia de Muestreo * Sobremuestreo
 
-  for (int i = 0; i<LEN_TOTAL; i++)
-    if ( i < int(TAU_SIGNAL*FS*NOS) ) // Tiempo del pulso
-      out_bits.push_back(POWER_TX);
-    else
-      out_bits.push_back(0);
-
+  if (PULSE_SHAPE == 0)
+    out_bits = gaussian_pulse(POWER_TX, TAU_SIGNAL, LEN_TOTAL, FS, NOS);
+  else
+    out_bits = rectangular_pulse(POWER_TX, TAU_SIGNAL, LEN_TOTAL, FS, NOS);
+  
   return out_bits;
 }
 
 /*----------------------------------------------------------------------------*/
 void TxLidarPulsed::exposeVar(){
 
+}
+
+std::vector<float> TxLidarPulsed::gaussian_pulse(float I_max, float T_pulso, int LEN_TOTAL, float FS, int NOS) {
+    // Calcular sigma a partir de T_pulso
+    float sigma = T_pulso / 2.355;
+
+    // Vector para almacenar los valores de la signal
+    std::vector<float> signal;
+
+    // Calcular la signal para cada punto de tiempo t
+    for (int t = 0; t < LEN_TOTAL; t++) {
+      float s_t = I_max * std::exp(-std::pow(t/(FS*NOS)-(T_pulso+T_pulso/2), 2) / (2 * std::pow(sigma, 2)));
+        signal.push_back(s_t);
+    }
+
+    return signal;
+}
+
+
+std::vector<float> TxLidarPulsed::rectangular_pulse(float I_max, float T_pulso, float LEN_TOTAL, float FS, int NOS ) {
+
+    // Vector para almacenar los valores de la signal
+    std::vector<float> signal;
+
+    // Calcular la signal para cada punto de tiempo t
+    for (int i = 0; i<LEN_TOTAL; i++)
+      if ( (i >= int(FS*NOS*(T_pulso/2)) ) && (i <= int((3*T_pulso/2)*FS*NOS)) ) // Tiempo del pulso
+	signal.push_back(I_max);
+      else
+	signal.push_back(0);
+
+    return signal;
 }

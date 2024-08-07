@@ -52,8 +52,11 @@ public:
 private:
   void exposeVar();
 
+  std::vector<float> rectangular_pulse(float I_max, float T_pulso, float LEN_TOTAL, float FS, int NOS );
+  std::vector<float> gaussian_pulse(float I_max, float T_pulso, int LEN_TOTAL, float FS, int NOS);
+
   // Params
-  int MAX_RANGE,NOS;
+  int MAX_RANGE,NOS, PULSE_SHAPE;
   double TAU_SIGNAL, FS, POWER_TX;
   
   // Variables

@@ -134,6 +134,7 @@ public class Carla : ModuleRules
       );
 
     AddCarlaServerDependency(Target);
+    AddFFTW3Dependency(Target);
   }
 
   private bool UseDebugLibs(ReadOnlyTargetRules Target)
@@ -170,6 +171,27 @@ public class Carla : ModuleRules
   {
     string [] files = Directory.GetFiles(LibPath, "*boost*.lib");
     foreach (string file in files) PublicAdditionalLibraries.Add(file);
+  }
+
+    private void AddFFTW3Dependency(ReadOnlyTargetRules Target)
+  {
+    string FFTW3Path = Path.Combine(ModuleDirectory, "Sensor/LidarTransceptor/src");
+
+    // Incluir archivos de cabecera
+    PublicIncludePaths.Add(Path.Combine(FFTW3Path, "common"));
+
+    // Añadir bibliotecas
+    if (IsWindows(Target))
+    {
+      PublicAdditionalLibraries.Add(Path.Combine(FFTW3Path, "common", "libfftw3f-3.lib"));
+      AddDllDependency(Path.Combine(FFTW3Path, "common"), "libfftw3f-3.dll");
+    }
+    else
+    {
+      PublicAdditionalLibraries.Add(Path.Combine(FFTW3Path, "common", "libfftw3.a"));
+      // Para bibliotecas compartidas, usa AddDynamicLibrary
+      // AddDynamicLibrary(Path.Combine(FFTW3Path, "lib", "libfftw3.so"));
+    }
   }
 
   private void AddCarlaServerDependency(ReadOnlyTargetRules Target)

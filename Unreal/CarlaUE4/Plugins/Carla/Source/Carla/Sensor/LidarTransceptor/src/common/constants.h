@@ -19,6 +19,9 @@ struct parametersLiDAR {
   double TAU_SIGNAL;  // Duración del pulso [s] si lo aumento, gano SNR, pierdo resolución
   double TX_FS;          // Frecuencia de Muestreo [Hz]
   unsigned int TX_NOS;   // Sobremuestreo [Veces]
+  unsigned int PULSE_SHAPE;
+  float F_BW;
+  float F_MIN;
 
   // Channel
   
@@ -31,6 +34,7 @@ struct parametersLiDAR {
   double RPD;          // Sensibilidad del fotodetector [A/W] 
   double RX_FS;        // Frecuencia de Muestreo [Hz]
   unsigned int RX_NOS; // Sobremuestreo [Veces]
+
   
 };
  

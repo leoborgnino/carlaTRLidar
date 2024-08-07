@@ -37,7 +37,7 @@ int  RxLidarPulsed::init(parametersLiDAR *params){
   FS = params->RX_FS;
   NOS = params->RX_NOS;
   POWER_RX = params->PRX;    
-  RPD = params->RPD;    
+  RPD = params->RPD;
 
   noise_power = RPD;//Q_ELECT/RPD*FS; // FIXME PLS UWU
   return 0;
