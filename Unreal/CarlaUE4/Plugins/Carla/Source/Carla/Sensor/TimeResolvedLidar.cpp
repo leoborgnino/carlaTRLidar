@@ -92,12 +92,19 @@ void ATimeResolvedLidar::Set(const FLidarDescription &LidarDescription)
   
   tx_lidar = new TxLidarPulsed();
   tx_lidar->init(&params);
-  
+
+  tx_lidar_fmcw = new TxLidarFMCW();
+  tx_lidar_fmcw->init(&params);
+
   channel_lidar = new ChannelLidar();
   channel_lidar->init(&params);
 
   rx_lidar = new RxLidarPulsed();
   rx_lidar->init(&params);
+
+  rx_lidar_fmcw = new RxLidarFMCW();
+  rx_lidar_fmcw->init(&params);
+
 }
 
 void ATimeResolvedLidar::PostPhysTick(UWorld *World, ELevelTick TickType, float DeltaTime)

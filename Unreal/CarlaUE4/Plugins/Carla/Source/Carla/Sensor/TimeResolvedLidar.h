@@ -18,10 +18,12 @@
 // Tx
 #include "Carla/Sensor/LidarTransceptor/src/common/constants.h"
 #include "Carla/Sensor/LidarTransceptor/src/tx_lidar/TxLidarPulsed.h"
+#include "Carla/Sensor/LidarTransceptor/src/tx_lidar/TxLidarFMCW.h"
 // Channel
 #include "Carla/Sensor/LidarTransceptor/src/channel_lidar/ChannelLidar.h"
 // Rx
 #include "Carla/Sensor/LidarTransceptor/src/rx_lidar/RxLidarPulsed.h"
+#include "Carla/Sensor/LidarTransceptor/src/rx_lidar/RxLidarFMCW.h"
 
 #include "Carla/Actor/ActorBlueprintFunctionLibrary.h"
 
@@ -92,9 +94,11 @@ private:
 
   // Transceptor LiDAR
   parametersLiDAR params;
-
+ 
   TxLidarPulsed * tx_lidar;
+  TxLidarFMCW * tx_lidar_fmcw;
   ChannelLidar *  channel_lidar;
   RxLidarPulsed * rx_lidar;
+  RxLidarFMCW * rx_lidar_fmcw;
 
 };
