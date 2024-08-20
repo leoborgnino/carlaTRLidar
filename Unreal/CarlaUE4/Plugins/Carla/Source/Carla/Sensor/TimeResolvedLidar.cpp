@@ -126,332 +126,342 @@ ATimeResolvedLidar::FDetection ATimeResolvedLidar::ComputeDetection(const FHitRe
   FDetection Detection;
   const FVector HitPoint = HitInfo.ImpactPoint;
   Detection.point = SensorTransf.Inverse().TransformPosition(HitPoint);
-
-  const float Distance = Detection.point.Length();
+  
+  const float Distance = GetHitDistanceConst(HitInfo,SensorTransf);
 
   //Atenuacion atmosferica en base a la distancia, por defecto de CARLA
-  const float AttenAtm = Description.AtmospAttenRate;
-  const float AbsAtm = exp(-AttenAtm * Distance);
   float CosAngle = 1.0;
-  float ReflectivityValue = 1.0;
+  float Reflectance = 1.0;
+  float AbsAtm = 1.0;
+
+  AbsAtm = GetHitAtmAtt( Description.AtmospAttenRate, Description.MODEL_WEATHER );
   
   //MEJORAS DEL MODELO
   //Efecto del angulo del incidencia
 
   if (Description.INTENSITY_CALC)
     {
-      //Posicion del sensor
-      FVector SensorLocation = SensorTransf.GetLocation(); 
-      //Vector incidente, normalizado, entre sensor y punto de hit con el target
-      FVector VectorIncidente = - (HitPoint - SensorLocation).GetSafeNormal();
-      FVector VectorIncidente_t = VectorIncidente * Distance;
-  
-      //Vector normal a la superficie de hit, normalizado
-      FVector VectorNormal = HitInfo.ImpactNormal;
-      //Producto punto entre ambos vector, se obtiene el coseno del ang de incidencia
-      CosAngle = FVector::DotProduct(VectorIncidente, VectorNormal);
-      //CosAngle = sqrtf(CosAngle);
-  
+
+      CosAngle = GetHitCosIncAngle(HitInfo, SensorTransf);
+      CosAngle = sqrtf(CosAngle);
+      
       //Efecto de la reflectividad del material
-      
-      AActor* ActorHit = HitInfo.GetActor();
-      FString ActorHitName = ActorHit->GetName();
 
-      bool MaterialFound=false;
-      bool ActorFound = false;
+      Reflectance = GetHitReflectance(HitInfo);
 
-      //Determinar si el actor del hit, esta dentro de los actores a los cuales computar los materiales
-      for (int32 i=0; i!=ActorsList.Num();i++){
-	      if(ActorHitName.Contains(ActorsList[i])){
-	        ActorFound=true;
-	        break;
-	      }
-      }
-      /**/
-      //Segun si el nombre del actor, corresponde a un actor al cual computar su material
-      if( ActorFound ){
-	      //Se obtiene el nombre del material del hit
-        UE_LOG(LogCarla, Log, TEXT("Get MaterialName"));
-	      FString MaterialNameHit = GetHitMaterialName(HitInfo);
-        UE_LOG(LogCarla, Log, TEXT("Got MaterialName"));
-      
-	    if(params.DEBUG_GLOBAL)
-	      UE_LOG(LogCarla, Log, TEXT("Material: %s"), *MaterialNameHit);
-
-	    //Se recorre la lista de materiales con su respectiva reflectividad
-	    for (auto& Elem : ReflectivityMap){
-	      FString MaterialKey = Elem.Key;
-	      //comprueba de si el nombre del material esta incluido en el material del hit
-	      if(MaterialNameHit.Contains(MaterialKey)){
-	        //cuando se encuentra, se obtiene el valor de reflectividad asociado a ese material
-	        ReflectivityValue = (float)Elem.Value;
-	        if(params.DEBUG_GLOBAL)
-	          UE_LOG(LogCarla, Log, TEXT("Reflectividad: %f"), ReflectivityValue);
-	        MaterialFound=true;
-	        //WriteFile(MaterialNameHit);
-	        break;
-	        }
-	      }
-      }
-      
-      if(!MaterialFound){
-          const double* ReflectivityPointer;
-	        //Se le asigna una reflectivdad por defeto a los materiales no criticos
-	        ReflectivityPointer = ReflectivityMap.Find(TEXT("NoMaterial"));
-	        ReflectivityValue = (float)*ReflectivityPointer;
-      }
-      
       //La intensidad del punto tiene en cuenta:
       //Atenuacion atmosferica -> la intensidad sera menor a mayor distancia
       //Cos Ang Incidencia -> la intensidad mientras mas perpendicular a la superficie sea el rayo incidente
+      //Reflectividad del material
+      float IntensityNoiseStdDev = Description.NoiseStdDevIntensity;
+      const float IntRec = (CosAngle * AbsAtm * Reflectance ) + RandomEngine->GetNormalDistribution(0.0f, IntensityNoiseStdDev);
 
+      // Saturacion Intensidad
+      if(IntRec <= 0.99 && IntRec > 0.0)
+	Detection.intensity = IntRec;
+      else if(IntRec > 0.99)
+	Detection.intensity = 0.99;
+      else
+	Detection.intensity = 0.0;
+      
       if (Description.TRANS_ON){
-	      // LiDAR Transceptor
-	      vector<float> output_tx;
-	      output_tx = tx_lidar->run();
+	// LiDAR Transceptor
+	vector<float> output_tx;
+	output_tx = tx_lidar->run();
       
         UE_LOG(LogCarla, Log, TEXT("TX: %d"), output_tx.size());
 
-	      vector<float> output_channel;
-	      //output_channel = output_tx;//channel_lidar->run(output_tx,Distance,ReflectivityValue,CosAngle); // Ojo calcula la intensidad diferente
-        output_channel = channel_lidar->run(output_tx,Distance,ReflectivityValue,CosAngle); // Ojo calcula la intensidad diferente
+	vector<float> output_channel;
+	//output_channel = output_tx;//channel_lidar->run(output_tx,Distance,ReflectivityValue,CosAngle); // Ojo calcula la intensidad diferente
+        output_channel = channel_lidar->run(output_tx,Distance,IntRec); // Ojo calcula la intensidad diferente
 
         UE_LOG(LogCarla, Log, TEXT("CHANNEL: %d"), output_channel.size());
         
-	      vector<float> output_rx;  
-	      output_rx = rx_lidar->run(output_tx,output_channel);
-	      Detection.time_signal = output_rx;
+	vector<float> output_rx;  
+	output_rx = rx_lidar->run(output_tx,output_channel);
+	Detection.time_signal = output_rx;
         UE_LOG(LogCarla, Log, TEXT("RX: %d"), output_rx.size());
       
-	      // Calculo de la distancia
-	      auto it = max_element(output_rx.begin(),output_rx.end());
-	      int max_idx = distance(output_rx.begin(),it);
-	      double max_value = *it;
-	      double distance = ((max_idx+1-output_tx.size())/(params.RX_FS*params.RX_NOS))*LIGHT_SPEED/2;      // Calculo de la distancia
-	      FVector vector_proc = (VectorIncidente*distance);
+	// Calculo de la distancia
+	auto it = max_element(output_rx.begin(),output_rx.end());
+	int max_idx = distance(output_rx.begin(),it);
+	double max_value = *it;
+	double distance = ((max_idx+1-output_tx.size())/(params.RX_FS*params.RX_NOS))*LIGHT_SPEED/2;      // Calculo de la distancia
+	FVector vector_proc = (VectorIncidente*distance);
 
-	      // Only Debug
-	      if(params.DEBUG_GLOBAL){
-	        if (params.LOG_RX){
-		        cout << "Punto: " << Detection.point.x << " " << Detection.point.y << " " << Detection.point.z << endl;
-		        cout << "Punto: " << vector_proc.X << " " << vector_proc.Y << " " << vector_proc.Z << endl;
-		        cout << output_tx.size() << " " << output_channel.size() << " " << endl;
-		        UE_LOG(LogCarla, Log, TEXT("Distancia: %f"), Distance);
-		        cout << "Distancia Receptor: " << distance << endl;
-		        UE_LOG(LogCarla, Log, TEXT("Vector3: %s"), *(VectorIncidente*distance).ToString());
-		        UE_LOG(LogCarla, Log, TEXT("Vector: %s"), *VectorIncidente.ToString());
+	// Only Debug
+	if(params.DEBUG_GLOBAL){
+	  if (params.LOG_RX){
+	    cout << "Punto: " << Detection.point.x << " " << Detection.point.y << " " << Detection.point.z << endl;
+	    cout << "Punto: " << vector_proc.X << " " << vector_proc.Y << " " << vector_proc.Z << endl;
+	    cout << output_tx.size() << " " << output_channel.size() << " " << endl;
+	    UE_LOG(LogCarla, Log, TEXT("Distancia: %f"), Distance);
+	    cout << "Distancia Receptor: " << distance << endl;
+	    UE_LOG(LogCarla, Log, TEXT("Vector3: %s"), *(VectorIncidente*distance).ToString());
+	    UE_LOG(LogCarla, Log, TEXT("Vector: %s"), *VectorIncidente.ToString());
 		  
-		        UE_LOG(LogCarla, Log, TEXT("Vector2: %s"), *VectorIncidente_t.ToString());
+	    UE_LOG(LogCarla, Log, TEXT("Vector2: %s"), *VectorIncidente_t.ToString());
 		  
-		        cout << "******************* Detección ***************" << endl;
+	    cout << "******************* Detección ***************" << endl;
             std::ostringstream oss;
-		        for (auto& i : Detection.time_signal){
-		          cout <<  i << " ";
+	    for (auto& i : Detection.time_signal){
+	      cout <<  i << " ";
               oss << i << ",";
             }
             oss << endl;
-		        cout << endl;
+	    cout << endl;
             std::string str = oss.str();
             FString unrealString(str.c_str());
             WriteFile("time_signal.txt",unrealString);
-		      }  
+	  }  
         }  
         Detection.point.x = vector_proc.X;
-	      Detection.point.y = vector_proc.Y;
-	      Detection.point.z = -vector_proc.Z;
+	Detection.point.y = vector_proc.Y;
+	Detection.point.z = -vector_proc.Z;
         
-	    }
+      }
       
     }
-
-  //Reflectividad del material
-  Detection.intensity = CosAngle * AbsAtm * ReflectivityValue;
 
   if(Description.DEBUG_GLOBAL)
     {
       using nano = std::chrono::nanoseconds;
       auto finish = std::chrono::high_resolution_clock::now();
       std::cout << "RAYCAST ELAPSED: "
-		  << std::chrono::duration_cast<nano>(finish - start).count()
-		  << " nanoseconds\n";
+		<< std::chrono::duration_cast<nano>(finish - start).count()
+		<< " nanoseconds\n";
     }
   return Detection;
 }
 
-  void ATimeResolvedLidar::PreprocessRays(uint32_t Channels, uint32_t MaxPointsPerChannel) {
-    Super::PreprocessRays(Channels, MaxPointsPerChannel);
+void ATimeResolvedLidar::PreprocessRays(uint32_t Channels, uint32_t MaxPointsPerChannel) {
+  Super::PreprocessRays(Channels, MaxPointsPerChannel);
 
-    for (auto ch = 0u; ch < Channels; ch++) {
-      for (auto p = 0u; p < MaxPointsPerChannel; p++) {
-        RayPreprocessCondition[ch][p] = !(DropOffGenActive && RandomEngine->GetUniformFloat() < Description.DropOffGenRate);
-      }
+  for (auto ch = 0u; ch < Channels; ch++) {
+    for (auto p = 0u; p < MaxPointsPerChannel; p++) {
+      RayPreprocessCondition[ch][p] = !(DropOffGenActive && RandomEngine->GetUniformFloat() < Description.DropOffGenRate);
+    }
+  }
+}
+
+bool ATimeResolvedLidar::PostprocessDetection(FDetection& Detection) const
+{
+  const float Intensity = Detection.intensity;
+  if(Intensity > Description.DropOffIntensityLimit)
+    return true;
+  else
+    return RandomEngine->GetUniformFloat() < DropOffAlpha * Intensity + DropOffBeta;
+}
+
+void ATimeResolvedLidar::ComputeAndSaveDetections(const FTransform& SensorTransform) {
+  for (auto idxChannel = 0u; idxChannel < Description.Channels; ++idxChannel)
+    PointsPerChannel[idxChannel] = RecordedHits[idxChannel].size();
+
+  LidarData.ResetMemory(PointsPerChannel);
+
+  for (auto idxChannel = 0u; idxChannel < Description.Channels; ++idxChannel) {
+    for (auto& hit : RecordedHits[idxChannel]) {
+      FDetection Detection = ComputeDetection(hit, SensorTransform);
+      if (PostprocessDetection(Detection))
+	LidarData.WritePointSync(Detection);	    
+      else
+	PointsPerChannel[idxChannel]--;
     }
   }
 
-  bool ATimeResolvedLidar::PostprocessDetection(FDetection& Detection) const
-  {
-    // Removed Extra Noise
-    //if (Description.NoiseStdDev > std::numeric_limits<float>::epsilon()) {
-    //  if ( abs(Detection.point.x) < 0.0001 &&
-    //	   abs(Detection.point.y) < 0.0001 &&
-    //	   abs(Detection.point.z) < 0.0001 )
-    //	Detection.point.z = 1.0;
-    //  
-    //  const auto ForwardVector = Detection.point.MakeUnitVector();
-    //  const auto Noise = ForwardVector * RandomEngine->GetNormalDistribution(0.0f, Description.NoiseStdDev);
-    //  Detection.point += Noise;
-    //}
+  LidarData.WriteChannelCount(PointsPerChannel);
+}
 
-    const float Intensity = Detection.intensity;
-    if(Intensity > Description.DropOffIntensityLimit)
-      return true;
-    else
-      return RandomEngine->GetUniformFloat() < DropOffAlpha * Intensity + DropOffBeta;
-  }
+float ATimeResolvedLidar::GetHitDistance(const FHitResult& HitInfo,const FTransform& SensorTransf) const
+{
+    FDetection Detection;
+    const FVector HitPoint = HitInfo.ImpactPoint;
+    Detection.point = SensorTransf.Inverse().TransformPosition(HitPoint);
 
-  void ATimeResolvedLidar::ComputeAndSaveDetections(const FTransform& SensorTransform) {
-    for (auto idxChannel = 0u; idxChannel < Description.Channels; ++idxChannel)
-      PointsPerChannel[idxChannel] = RecordedHits[idxChannel].size();
+    float Distance = Detection.point.Length();
 
-    LidarData.ResetMemory(PointsPerChannel);
+    return Distance;
+}
 
-    for (auto idxChannel = 0u; idxChannel < Description.Channels; ++idxChannel) {
-      for (auto& hit : RecordedHits[idxChannel]) {
-        FDetection Detection = ComputeDetection(hit, SensorTransform);
-        if (PostprocessDetection(Detection))
-	        LidarData.WritePointSync(Detection);	    
-        else
-          PointsPerChannel[idxChannel]--;
-      }
-    }
+float ATimeResolvedLidar::GetHitAtmAtt(const float AttenAtmRate,const int mode) const
+{
+  if(mode == 0)
+    return exp(-AttenAtm * Distance);
+}
 
-    LidarData.WriteChannelCount(PointsPerChannel);
-  }
-
-  //Funcion implementada para leer desde un json, la reflectividad asociada a cada material
-  //y cargarlo en el ReflectivityMap
-  void ATimeResolvedLidar::LoadReflectivityMapFromJson(){
-
-    //path del archivo json
-    const FString FilePath = FPaths::ProjectDir() + "../../../CARLA_scripts/LidarModelFiles/materials.json";
+float ATimeResolvedLidar::GetHitReflectance( const FHitResult& HitInfo ) const
+{
+  AActor* ActorHit = HitInfo.GetActor();
+  FString ActorHitName = ActorHit->GetName();
   
-    //const FString JsonFilePath = FPaths::ProjectContentDir() + "/JsonFiles/materials.json";
+  //Segun si el nombre del actor, corresponde a un actor al cual computar su material
+  bool CriticalVehicle = IsCriticalVehicle(ActorHitName);
+  if(CriticalVehicle)
+    {
+      //Se obtiene el nombre del material del hit
+      FString MaterialNameHit = GetHitMaterialName(HitInfo);
+      //Si el actor corresponde a un ciclista y no se obtiene material, coresponde a la parte de la persona
+      if(IsCyclist(ActorHitName) && (MaterialNameHit.Compare("NoMaterial") == 0))
+	Reflectance = GetMaterialReflectanceValue(TEXT("Pedestrian"));
+      else
+	Reflectance = GetMaterialReflectanceValue(MaterialNameHit);
+    }
+  else if(IsPedestrian(ActorHitName))
+    Reflectance = GetMaterialReflectanceValue(TEXT("Pedestrian"));
+  else
+    //Se le asigna una reflectivdad por defeto a los materiales no criticos
+    Reflectance = GetMaterialReflectanceValue(TEXT("NoMaterial"));
 
-    //carga el json a un string
-    FString JsonString;
-    FFileHelper::LoadFileToString(JsonString,*FilePath);
+  return Reflectance;
+}
 
-    TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject());
-	  TSharedRef<TJsonReader<>> JsonReader = TJsonReaderFactory<>::Create(JsonString);
+//Funcion implementada para leer desde un json, la reflectividad asociada a cada material
+//y cargarlo en el ReflectivityMap
+void ATimeResolvedLidar::LoadReflectivityMapFromJson(){
 
-    //parsea el string a un jsonobject
-    if (FJsonSerializer::Deserialize(JsonReader, JsonObject) && JsonObject.IsValid())
+  //path del archivo json
+  const FString FilePath = FPaths::ProjectDir() + "../../../CARLA_scripts/LidarModelFiles/materials.json";
+  
+  //const FString JsonFilePath = FPaths::ProjectContentDir() + "/JsonFiles/materials.json";
+
+  //carga el json a un string
+  FString JsonString;
+  FFileHelper::LoadFileToString(JsonString,*FilePath);
+
+  TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject());
+  TSharedRef<TJsonReader<>> JsonReader = TJsonReaderFactory<>::Create(JsonString);
+
+  //parsea el string a un jsonobject
+  if (FJsonSerializer::Deserialize(JsonReader, JsonObject) && JsonObject.IsValid())
     { 
       //obtener el array de materials
       TArray<TSharedPtr<FJsonValue>> objArray=JsonObject->GetArrayField("materials");
       
       //iterar sobre todos los elmentos del array
       for(int32 index=0;index<objArray.Num();index++)
-      {
-        TSharedPtr<FJsonObject> obj = objArray[index]->AsObject();
-        if(obj.IsValid()){
+	{
+	  TSharedPtr<FJsonObject> obj = objArray[index]->AsObject();
+	  if(obj.IsValid()){
           
-          //de cada elemento, obtener nombre y reflectivity
-          FString name = obj->GetStringField("name");
-          double reflec = obj->GetNumberField("reflectivity");
+	    //de cada elemento, obtener nombre y reflectivity
+	    FString name = obj->GetStringField("name");
+	    double reflec = obj->GetNumberField("reflectivity");
 
-          //cargar en el ReflectivityMap
-          ReflectivityMap.Add(name,reflec);
+	    //cargar en el ReflectivityMap
+	    ReflectivityMap.Add(name,reflec);
 
-          GLog->Log("name:" + name);
-          GLog->Log("reflectivity:" + FString::SanitizeFloat(reflec));
-        }
-      }
+	    GLog->Log("name:" + name);
+	    GLog->Log("reflectivity:" + FString::SanitizeFloat(reflec));
+	  }
+	}
     }
-  }
+}
 
-  void ATimeResolvedLidar::LoadActorsList(){
+void ATimeResolvedLidar::LoadActorsList(){
 
-    //path del archivo json
-    const FString FilePath = FPaths::ProjectDir() + "../../../CARLA_scripts/LidarModelFiles/materials.json";
+  //path del archivo json
+  const FString FilePath = FPaths::ProjectDir() + "../../../CARLA_scripts/LidarModelFiles/materials.json";
   
-    //const FString JsonFilePath = FPaths::ProjectContentDir() + "/JsonFiles/materials.json";
+  //const FString JsonFilePath = FPaths::ProjectContentDir() + "/JsonFiles/materials.json";
 
-    //carga el json a un string
-    FString JsonString;
-    FFileHelper::LoadFileToString(JsonString,*FilePath);
+  //carga el json a un string
+  FString JsonString;
+  FFileHelper::LoadFileToString(JsonString,*FilePath);
 
-    TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject());
-	  TSharedRef<TJsonReader<>> JsonReader = TJsonReaderFactory<>::Create(JsonString);
+  TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject());
+  TSharedRef<TJsonReader<>> JsonReader = TJsonReaderFactory<>::Create(JsonString);
 
-    //parsea el string a un jsonobject
-    if (FJsonSerializer::Deserialize(JsonReader, JsonObject) && JsonObject.IsValid())
+  //parsea el string a un jsonobject
+  if (FJsonSerializer::Deserialize(JsonReader, JsonObject) && JsonObject.IsValid())
     { 
       //obtener el array de materials
       TArray<TSharedPtr<FJsonValue>> objArray=JsonObject->GetArrayField("vehicles");
       
       //iterar sobre todos los elmentos del array
       for(int32 index=0;index<objArray.Num();index++)
-      {
-        TSharedPtr<FJsonObject> obj = objArray[index]->AsObject();
-        if(obj.IsValid()){
+	{
+	  TSharedPtr<FJsonObject> obj = objArray[index]->AsObject();
+	  if(obj.IsValid()){
           
-          //de cada elemento, obtener el nombre del actor
-          FString name = obj->GetStringField("unreal_actor_name");
+	    //de cada elemento, obtener el nombre del actor
+	    FString name = obj->GetStringField("unreal_actor_name");
 
-          ActorsList.Add(name);
+	    ActorsList.Add(name);
 
-          GLog->Log("name:" + name);
+	    GLog->Log("name:" + name);
 
-        }
-      }
+	  }
+	}
     }
 
-  }
+}
 
-  bool ATimeResolvedLidar::WriteFile(FString Filename, FString String) const {
-    const FString FilePath = FPaths::ProjectContentDir() + TEXT("/LogFiles/") + Filename;
 
-    FString new_String = FString::Printf( TEXT( "%s \n" ), *String);
-    FFileHelper::SaveStringToFile(new_String, *FilePath,
-    FFileHelper::EEncodingOptions::AutoDetect, &IFileManager::Get(), FILEWRITE_Append);
+FString ATimeResolvedLidar::GetHitMaterialName(const FHitResult& HitInfo) const{
 
-    return true;
-  }
-
-  FString ATimeResolvedLidar::GetHitMaterialName(const FHitResult& HitInfo) const{
-
-    UPrimitiveComponent* ComponentHit = HitInfo.GetComponent();
+  UPrimitiveComponent* ComponentHit = HitInfo.GetComponent();
     
-    if(ComponentHit){
-      if (HitInfo.FaceIndex != -1) {
-        int32 section = 0;
-        UMaterialInterface* MaterialIntHit = ComponentHit->GetMaterialFromCollisionFaceIndex(HitInfo.FaceIndex, section);
-        return MaterialIntHit->GetName();
+  if(ComponentHit){
+    if (HitInfo.FaceIndex != -1) {
+      int32 section = 0;
+      UMaterialInterface* MaterialIntHit = ComponentHit->GetMaterialFromCollisionFaceIndex(HitInfo.FaceIndex, section);
+      return MaterialIntHit->GetName();
 
-      }
     }
-
-    return FString(TEXT("NoMaterial"));
-    
   }
 
-  float ATimeResolvedLidar::GetHitMaterialSpecular(const FHitResult& HitInfo) const{
-
-    UPrimitiveComponent* ComponentHit = HitInfo.GetComponent();
+  return FString(TEXT("NoMaterial"));
     
-    if(ComponentHit){
-      if (HitInfo.FaceIndex != -1) {
-        int32 section = 0;
-        UMaterialInterface* MaterialIntHit = ComponentHit->GetMaterialFromCollisionFaceIndex(HitInfo.FaceIndex, section);
-	      float ScalarValue;
-	      UMaterialInstanceDynamic* MaterialInstance = UMaterialInstanceDynamic::Create(MaterialIntHit, nullptr);
-	      bool bScalarFound = MaterialInstance->GetScalarParameterValue(FName("Specular"), ScalarValue);
-        return ScalarValue;
+}
 
-      }
+float ATimeResolvedLidar::GetHitMaterialSpecular(const FHitResult& HitInfo) const{
+
+  UPrimitiveComponent* ComponentHit = HitInfo.GetComponent();
+    
+  if(ComponentHit){
+    if (HitInfo.FaceIndex != -1) {
+      int32 section = 0;
+      UMaterialInterface* MaterialIntHit = ComponentHit->GetMaterialFromCollisionFaceIndex(HitInfo.FaceIndex, section);
+      float ScalarValue;
+      UMaterialInstanceDynamic* MaterialInstance = UMaterialInstanceDynamic::Create(MaterialIntHit, nullptr);
+      bool bScalarFound = MaterialInstance->GetScalarParameterValue(FName("Specular"), ScalarValue);
+      return ScalarValue;
+
     }
-
-    return -1;
-    
   }
+  return -1;
+    
+}
+
+bool ATimeResolvedLidar::WriteFile(FString Filename, FString String) const {
+  const FString FilePath = FPaths::ProjectContentDir() + TEXT("/LogFiles/") + Filename;
+
+  FString new_String = FString::Printf( TEXT( "%s \n" ), *String);
+  FFileHelper::SaveStringToFile(new_String, *FilePath,
+				FFileHelper::EEncodingOptions::AutoDetect, &IFileManager::Get(), FILEWRITE_Append);
+
+  return true;
+}
+
+bool ATimeResolvedLidar::IsCriticalVehicle(FString ActorHitName) const
+{
+  bool ActorFound = false;
+  //Determinar si el actor del hit, esta dentro de los vevhiculos a los cuales computar los materiales
+  for (int32 i=0; i!=VehiclesList.Num();i++)
+    if(ActorHitName.Contains(VehiclesList[i]))
+      {
+	ActorFound=true;
+	break;
+      }
+  return ActorFound;
+}
+
+bool ATimeResolvedLidar::IsPedestrian(FString ActorHitName) const
+{
+  return ActorHitName.Contains(TEXT("Walker"));
+}
+
+bool ATimeResolvedLidar::IsCyclist(FString ActorHitName) const
+{
+  return ActorHitName.Contains(TEXT("Bike"));
+}

@@ -63,6 +63,10 @@ private:
   void ComputeAndSaveDetections(const FTransform& SensorTransform) override;
   bool WriteFile(FString Filename, FString String) const;
 
+  bool IsCriticalVehicle(FString ActorHitName) const;
+  bool IsPedestrian(FString ActorHitName) const;
+  bool IsCyclist(FString ActorHitName) const;
+
   FLidarData LidarData;
 
   /// Enable/Disable general dropoff of lidar points
@@ -90,6 +94,9 @@ private:
   
   FString GetHitMaterialName(const FHitResult& HitInfo) const;
   float GetHitMaterialSpecular(const FHitResult& HitInfo) const;
+  float GetHitReflectance( const FHitResult& HitInfo ) const;
+  float GetHitDistance(const FHitResult& HitInfo,const FTransform& SensorTransf) const;
+  float GetHitAtmAtt(const float AttenAtmRate,const int mode) const;
 
 
   // Transceptor LiDAR
