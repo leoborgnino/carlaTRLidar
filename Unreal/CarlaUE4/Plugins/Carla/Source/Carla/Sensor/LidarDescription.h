@@ -138,11 +138,15 @@ struct CARLA_API FLidarDescription
 
   /// Model angle of incidence in LiDAR
   UPROPERTY(EditAnywhere)
-  bool ModelAngleofIncidence = false;
+  bool ModelWeather = false;
 
   /// Model material in LiDAR
   UPROPERTY(EditAnywhere)
-  bool ModelMaterial = false;
+  int BeamDivergence = 0;
+
+  /// Model material in LiDAR
+  UPROPERTY(EditAnywhere)
+  int TransceptorArch = 0;
 
   /// Model Multiple Return in LiDAR
   UPROPERTY(EditAnywhere)

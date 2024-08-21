@@ -859,7 +859,7 @@ void UActorBlueprintFunctionLibrary::MakeRadarDefinition(
   FActorVariation HorizontalFOV;
   HorizontalFOV.Id = TEXT("horizontal_fov");
   HorizontalFOV.Type = EActorAttributeType::Float;
-  HorizontalFOV.RecommendedValues = { TEXT("30") };
+  HorizontalFOV.RecommendedValues = { TEXT("360") };
   HorizontalFOV.bRestrictToRecommended = false;
 
   FActorVariation VerticalFOV;
@@ -1090,17 +1090,18 @@ void UActorBlueprintFunctionLibrary::MakeLidarDefinition(
   INTENSITY_CALC.Id = TEXT("model_intensity");
   INTENSITY_CALC.Type = EActorAttributeType::Bool;
   INTENSITY_CALC.RecommendedValues = { TEXT("false") };
-   // Model Angle of Incidence in intensity.
-  FActorVariation ModelAngleofIncidence;
-  ModelAngleofIncidence.Id = TEXT("model_angle");
-  ModelAngleofIncidence.Type = EActorAttributeType::Bool;
-  ModelAngleofIncidence.RecommendedValues = { TEXT("false") };
-  // Model Material in intensity.
-  FActorVariation ModelMaterial;
-  ModelMaterial.Id = TEXT("model_material");
-  ModelMaterial.Type = EActorAttributeType::Bool;
-  ModelMaterial.RecommendedValues = { TEXT("false") };
-    // Model Material in intensity.
+  FActorVariation ModelWeather;
+  ModelWeather.Id = TEXT("model_weather");
+  ModelWeather.Type = EActorAttributeType::Bool;
+  ModelWeather.RecommendedValues = { TEXT("false") };
+  FActorVariation BeamDivergence;
+  BeamDivergence.Id = TEXT("beam_divergence");
+  BeamDivergence.Type = EActorAttributeType::Int;
+  BeamDivergence.RecommendedValues = { TEXT("0") };
+  FActorVariation TransceptorArch;
+  TransceptorArch.Id = TEXT("transceptor_arch");
+  TransceptorArch.Type = EActorAttributeType::Int;
+  TransceptorArch.RecommendedValues = { TEXT("0") };
   FActorVariation ModelMultipleReturn;
   ModelMultipleReturn.Id = TEXT("model_multiple_return");
   ModelMultipleReturn.Type = EActorAttributeType::Bool;
@@ -1149,17 +1150,7 @@ void UActorBlueprintFunctionLibrary::MakeLidarDefinition(
       DropOffGenRate,
       DropOffIntensityLimit,
       DropOffAtZeroIntensity,
-      StdDevLidar,
-      ModelAngleofIncidence,
-      ModelMaterial,
-      ModelMultipleReturn,
-      NumReturnsMax,
-      StdDevIntensity,
-      ModelReflectanceLimitsFunction,
-      ReflectanceLimitsFunctionCoeffA,
-      ReflectanceLimitsFunctionCoeffB,
-      ModelHDL64LasersGroups,
-      HorizontalFOV});
+      StdDevLidar});
   }
   else if (Id == "ray_cast_semantic") {
     Definition.Variations.Append({
@@ -1169,10 +1160,6 @@ void UActorBlueprintFunctionLibrary::MakeLidarDefinition(
       Frequency,
       UpperFOV,
       LowerFOV,
-      ModelAngleofIncidence,
-      ModelMaterial,
-      ModelMultipleReturn,
-      NumReturnsMax,
       HorizontalFOV});
   }
   else if (Id == "ray_cast_time_resolved"){
@@ -1190,9 +1177,14 @@ void UActorBlueprintFunctionLibrary::MakeLidarDefinition(
       DropOffAtZeroIntensity,
       StdDevLidar,
       HorizontalFOV,
-      ModelAngleofIncidence,
-      ModelMaterial,
+      ModelReflectanceLimitsFunction,
+      ReflectanceLimitsFunctionCoeffA,
+      ReflectanceLimitsFunctionCoeffB,
+      ModelHDL64LasersGroups,
       ModelMultipleReturn,
+      ModelWeather,
+      TransceptorArch,
+      BeamDivergence,
       NumReturnsMax,
       LAMBDA0,
       MAX_RANGE,
@@ -2293,10 +2285,12 @@ void UActorBlueprintFunctionLibrary::SetLidar(
     RetrieveActorAttributeToBool("model_transceptor", Description.Variations, Lidar.TRANS_ON);
   Lidar.INTENSITY_CALC =
     RetrieveActorAttributeToBool("model_intensity", Description.Variations, Lidar.INTENSITY_CALC);
-  Lidar.ModelAngleofIncidence =
-      RetrieveActorAttributeToBool("model_angle", Description.Variations, Lidar.ModelAngleofIncidence);
-  Lidar.ModelMaterial =
-      RetrieveActorAttributeToBool("model_material", Description.Variations, Lidar.ModelMaterial);
+  Lidar.ModelWeather =
+      RetrieveActorAttributeToBool("model_weather", Description.Variations, Lidar.ModelWeather);      
+  Lidar.BeamDivergence =
+      RetrieveActorAttributeToInt("beam_divergence", Description.Variations, Lidar.BeamDivergence);      
+  Lidar.TransceptorArch =
+      RetrieveActorAttributeToInt("transceptor_arch", Description.Variations, Lidar.TransceptorArch);      
   Lidar.ModelMultipleReturn =
       RetrieveActorAttributeToBool("model_multiple_return", Description.Variations, Lidar.ModelMultipleReturn);      
   Lidar.NumReturnsMax =

@@ -82,22 +82,32 @@ private:
 
   //Map de materialName,reflectivity para todos los materiales 
   //Se lo inicializa leyendo desde un archivo json en el constructor de la clase
-  TMap<FString, double> ReflectivityMap;
+  TMap<FString, double> ReflectanceMap;
 
   //Funcion para leer un archivo json y cargar el reflectivity map
-  void LoadReflectivityMapFromJson(); 
+  void LoadReflectanceMapFromJson(); 
 
-  //Lista de los nombres de actores, para los cuales se van a tener en cuenta los materiales
+  //Lista de los nombres de vehiculos, para los cuales se van a tener en cuenta los materiales
   //Se lo inicializa leyendo desde un archivo json en el constructor de la clase
-  TArray<FString> ActorsList;
-  void LoadActorsList();
+  TArray<FString> VehiclesList;
+
+  //Cargar la lista de vehiculos desde archivo json
+  void LoadVehiclesList();
   
   FString GetHitMaterialName(const FHitResult& HitInfo) const;
-  float GetHitMaterialSpecular(const FHitResult& HitInfo) const;
+  float GetHitCosIncAngle(const FHitResult& HitInfo, const FTransform& SensorTransf) const;
   float GetHitReflectance( const FHitResult& HitInfo ) const;
+  float GetMaterialReflectanceValue(FString MaterialName) const;
   float GetHitDistance(const FHitResult& HitInfo,const FTransform& SensorTransf) const;
-  float GetHitAtmAtt(const float AttenAtmRate,const int mode) const;
+  float GetHitAtmAtt(const float Distance, const float AttenAtmRate,const int mode) const;
 
+  //Determinar si el hit es valido, segun la refletividad y la funcion de rango
+  bool CheckDetectableReflectance(const FHitResult& HitInfo,const FTransform& SensorTransf);
+  bool UnderMinimumReturnDistance(const FHitResult& HitInfo,const FTransform& SensorTransf);
+
+  // Emisor Disposición
+  FVector GetShootLoc(FVector LidarBodyLoc, FRotator ResultRot, int32 idxChannel);
+  int32 GetGroupOfChannel(int32 idxChannel);
 
   // Transceptor LiDAR
   parametersLiDAR params;
