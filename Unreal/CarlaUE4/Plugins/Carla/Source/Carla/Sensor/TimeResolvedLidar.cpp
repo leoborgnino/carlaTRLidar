@@ -272,6 +272,175 @@ void ATimeResolvedLidar::ComputeAndSaveDetections(const FTransform& SensorTransf
   LidarData.WriteChannelCount(PointsPerChannel);
 }
 
+void ATimeResolvedLidar::SimulateLidar(const float DeltaTime)
+{
+  TRACE_CPUPROFILER_EVENT_SCOPE(ATimeResolvedLidar::SimulateLidar);
+  const bool ModelMultipleReturn = Description.ModelMultipleReturn;
+  const uint32 ChannelCount = Description.Channels;
+
+  check(ChannelCount == LaserAngles.Num());
+
+  const float CurrentHorizontalAngle = carla::geom::Math::ToDegrees(
+      SemanticLidarData.GetHorizontalAngle());
+  const float AngleDistanceOfTick = Description.RotationFrequency * Description.HorizontalFov
+      * DeltaTime;
+  const float HorizontalFOVRes = Description.HorizontalFov * Description.RotationFrequency / Description.PointPerSecond;
+  const uint32_t PointsToScanWithOneLaser = AngleDistanceOfTick / HorizontalFOVRes;
+  const float AngleDistanceOfLaserMeasure = AngleDistanceOfTick / PointsToScanWithOneLaser;
+  
+  if (PointsToScanWithOneLaser <= 0)
+  {
+    UE_LOG(
+        LogCarla,
+        Warning,
+        TEXT("%s: no points requested this frame, try increasing the number of points per second."),
+        *GetName());
+    return;
+  }
+
+  ResetRecordedHits(ChannelCount, PointsToScanWithOneLaser*Description.NumReturnsMax);
+  PreprocessRays(ChannelCount, PointsToScanWithOneLaser*Description.NumReturnsMax);
+
+  GetWorld()->GetPhysicsScene()->GetPxScene()->lockRead();
+  {
+    TRACE_CPUPROFILER_EVENT_SCOPE(ParallelFor);
+    ParallelFor(ChannelCount, [&](int32 idxChannel) {
+      TRACE_CPUPROFILER_EVENT_SCOPE(ParallelForTask);
+
+      FCollisionQueryParams TraceParams = FCollisionQueryParams(FName(TEXT("Laser_Trace")), true, this);
+      TraceParams.bTraceComplex = true;
+      TraceParams.bReturnPhysicalMaterial = false;
+
+      for (auto idxPtsOneLaser = 0u; idxPtsOneLaser < PointsToScanWithOneLaser; idxPtsOneLaser++) {
+        const float VertAngle = LaserAngles[idxChannel];
+        const float HorizAngle = std::fmod(CurrentHorizontalAngle + AngleDistanceOfLaserMeasure
+            * idxPtsOneLaser, Description.HorizontalFov) - Description.HorizontalFov / 2;
+        const bool PreprocessResult = RayPreprocessCondition[idxChannel][idxPtsOneLaser];
+
+	    TArray<FHitResult> HitsResult;
+	    if (PreprocessResult && ShootLaser(VertAngle, HorizAngle, HitsResult, TraceParams, idxChannel, ModelMultipleReturn)){
+        uint16_t cnt_hit = 0;
+        for (auto& hitInfo : HitsResult)
+	        WritePointAsync(idxChannel, hitInfo);
+          cnt_hit++;
+        }
+      };
+    });
+  }
+  GetWorld()->GetPhysicsScene()->GetPxScene()->unlockRead();
+
+  FTransform ActorTransf = GetTransform();
+  ComputeAndSaveDetections(ActorTransf);
+
+  const float HorizontalAngle = carla::geom::Math::ToRadians(
+      std::fmod(CurrentHorizontalAngle + AngleDistanceOfTick, Description.HorizontalFov));
+  SemanticLidarData.SetHorizontalAngle(HorizontalAngle);
+}
+
+
+bool ATimeResolvedLidar::ShootLaser(const float VerticalAngle, const float HorizontalAngle, TArray<FHitResult>& HitResults, FCollisionQueryParams& TraceParams, int32 idxChannel, const bool MultiShoot)
+{
+  TRACE_CPUPROFILER_EVENT_SCOPE_STR(__FUNCTION__);
+
+  FHitResult HitInfo(ForceInit);
+
+  FTransform ActorTransf = GetTransform();
+  FVector LidarBodyLoc = ActorTransf.GetLocation();
+  FRotator LidarBodyRot = ActorTransf.Rotator();
+
+  FRotator LaserRot (VerticalAngle, HorizontalAngle, 0);  // float InPitch, float InYaw, float InRoll
+  FRotator ResultRot = UKismetMathLibrary::ComposeRotators(
+    LaserRot,
+    LidarBodyRot
+  );
+
+  const auto Range = Description.Range;
+  FVector EndTrace = Range * UKismetMathLibrary::GetForwardVector(ResultRot) + LidarBodyLoc;
+
+  //Calcular la posicion del disparo segun el canal
+  FVector ShootLoc = GetShootLoc(LidarBodyLoc, ResultRot, idxChannel);
+
+  //CAMBIOS DE MODELO  
+  //El Trace debe ser complejo y retornar el face index para obtener el material
+  TraceParams.bTraceComplex = true;
+  TraceParams.bReturnFaceIndex = true;
+
+  // Only Debug Time Trace
+  double TimeStampStart;
+  if(Description.DEBUG_GLOBAL)
+    TimeStampStart = FPlatformTime::Seconds() * 1000.0;
+
+  // Shoot Laser
+  if (MultiShoot)
+    GetWorld()->LineTraceMultiByChannel( // Parallel ?
+      HitResults,
+      ShootLoc,
+      EndTrace,
+      ECC_GameTraceChannel2,
+      TraceParams,
+      FCollisionResponseParams::DefaultResponseParam
+    );
+  else
+  {
+    HitResults.Add(HitInfo);
+    GetWorld()->ParallelLineTraceSingleByChannel(
+      HitResults[0],
+      ShootLoc,
+      EndTrace,
+      ECC_GameTraceChannel2,
+      TraceParams,
+      FCollisionResponseParams::DefaultResponseParam
+    );
+  }
+
+  double TimeStampEnd;
+  double TimeTrace;
+  // Only Debug Time Trace
+  if(Description.DEBUG_GLOBAL)
+  {
+    TimeStampEnd = FPlatformTime::Seconds() * 1000.0;
+    TimeTrace = TimeStampEnd - TimeStampStart;
+  }
+
+  // Get Distances from Hits
+  TArray<float> DistanceTraces;
+  uint32_t cnt_hit = 0;
+  bool state_hits = true;
+  for (const auto& hitInfo : HitResults) 
+  { 
+    float DistanceTrace = GetHitDistance(hitInfo,ActorTransf);
+    DistanceTraces.Add(DistanceTrace);
+
+    if(Description.DEBUG_GLOBAL)
+      {
+      // Log Time/Distance
+      //nombre del archivo para log
+      FString NameLogFile = TEXT("Log_channel_") + FString::FromInt(idxChannel) + TEXT(".txt");
+      //tiempo del disparo para log
+      FString TimeLog = TEXT("Tiempo:") +FString::SanitizeFloat(TimeTrace);
+      //ditancia del disparo para log
+      FString DistLog = TEXT("Distancia:") +FString::SanitizeFloat(DistanceTrace);
+      WriteFile(NameLogFile,DistLog);
+      WriteFile(NameLogFile,TimeLog);
+    }
+
+    //eliminar puntos que son del vehiculo recolector de datos WARNING
+    if(UnderMinimumReturnDistance(hitInfo,ActorTransf))
+      state_hits = false;
+
+    //determinar si el punto corresponde a una reflectancia detectable
+    if(!CheckDetectableReflectance(hitInfo,ActorTransf))
+      state_hits = false;
+
+    // Blocking Removed: I think I don't care in multiple returns
+    //if (hitInfo.bBlockingHit) {
+    //  HitResult = hitInfo;
+    //}
+  }
+  return state_hits;
+}
+
+
 float ATimeResolvedLidar::GetHitDistance(const FHitResult& HitInfo,const FTransform& SensorTransf) const
 {
     FDetection Detection;

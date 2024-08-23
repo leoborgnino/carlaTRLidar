@@ -203,30 +203,29 @@ void ARayCastSemanticLidar::ComputeAndSaveDetections(const FTransform& SensorTra
 
 void ARayCastSemanticLidar::ComputeRawDetection(const FHitResult& HitInfo, const FTransform& SensorTransf, FSemanticDetection& Detection) const
 {
-    const FVector HitPoint = HitInfo.ImpactPoint;
-    Detection.point = SensorTransf.Inverse().TransformPosition(HitPoint);
+  const FVector HitPoint = HitInfo.ImpactPoint;
+  Detection.point = SensorTransf.Inverse().TransformPosition(HitPoint);
+  
+  const FVector VecInc = - (HitPoint - SensorTransf.GetLocation()).GetSafeNormal();
+  Detection.cos_inc_angle = FVector::DotProduct(VecInc, HitInfo.ImpactNormal);
+  
+  const FActorRegistry &Registry = GetEpisode().GetActorRegistry();
+  
+  const AActor* actor = HitInfo.Actor.Get();
+  Detection.object_idx = 0;
+  Detection.object_tag = static_cast<uint32_t>(HitInfo.Component->CustomDepthStencilValue);
 
-    const FVector VecInc = - (HitPoint - SensorTransf.GetLocation()).GetSafeNormal();
-    Detection.cos_inc_angle = FVector::DotProduct(VecInc, HitInfo.ImpactNormal);
-
-    const FActorRegistry &Registry = GetEpisode().GetActorRegistry();
-
-    const AActor* actor = HitInfo.Actor.Get();
-    Detection.object_idx = 0;
-    Detection.object_tag = static_cast<uint32_t>(HitInfo.Component->CustomDepthStencilValue);
-
-    if (actor != nullptr) {
-
+  if (actor != nullptr)
+    {
       const FCarlaActor* view = Registry.FindCarlaActor(actor);
       if(view)
-        Detection.object_idx = view->GetActorId();
-
+	Detection.object_idx = view->GetActorId();
     }
-    else {
+  else
+    {
       UE_LOG(LogCarla, Warning, TEXT("Actor not valid %p!!!!"), actor);
     }
 }
-
 
 bool ARayCastSemanticLidar::ShootLaser(const float VerticalAngle, const float HorizontalAngle, FHitResult& HitResult, FCollisionQueryParams& TraceParams) const
 {
@@ -262,4 +261,70 @@ bool ARayCastSemanticLidar::ShootLaser(const float VerticalAngle, const float Ho
   } else {
     return false;
   }
+}
+
+}
+void ARayCastSemanticLidar::SimulateLidar(const float DeltaTime)
+{
+  TRACE_CPUPROFILER_EVENT_SCOPE(ARayCastSemanticLidar::SimulateLidar);
+  const bool ModelMultipleReturn = Description.ModelMultipleReturn;
+  const uint32 ChannelCount = Description.Channels;
+
+  check(ChannelCount == LaserAngles.Num());
+
+  const float CurrentHorizontalAngle = carla::geom::Math::ToDegrees(
+      SemanticLidarData.GetHorizontalAngle());
+  const float AngleDistanceOfTick = Description.RotationFrequency * Description.HorizontalFov
+      * DeltaTime;
+  const uint32_t PointsToScanWithOneLaser = AngleDistanceOfTick / Description.HorizontalFOVRes;
+  const float AngleDistanceOfLaserMeasure = AngleDistanceOfTick / PointsToScanWithOneLaser;
+
+  
+  if (PointsToScanWithOneLaser <= 0)
+  {
+    UE_LOG(
+        LogCarla,
+        Warning,
+        TEXT("%s: no points requested this frame, try increasing the number of points per second."),
+        *GetName());
+    return;
+  }
+
+  ResetRecordedHits(ChannelCount, PointsToScanWithOneLaser*Description.NumReturnsMax);
+  PreprocessRays(ChannelCount, PointsToScanWithOneLaser*Description.NumReturnsMax);
+
+  GetWorld()->GetPhysicsScene()->GetPxScene()->lockRead();
+  {
+    TRACE_CPUPROFILER_EVENT_SCOPE(ParallelFor);
+    ParallelFor(ChannelCount, [&](int32 idxChannel) {
+      TRACE_CPUPROFILER_EVENT_SCOPE(ParallelForTask);
+
+      FCollisionQueryParams TraceParams = FCollisionQueryParams(FName(TEXT("Laser_Trace")), true, this);
+      TraceParams.bTraceComplex = true;
+      TraceParams.bReturnPhysicalMaterial = false;
+
+      for (auto idxPtsOneLaser = 0u; idxPtsOneLaser < PointsToScanWithOneLaser; idxPtsOneLaser++) {
+        const float VertAngle = LaserAngles[idxChannel];
+        const float HorizAngle = std::fmod(CurrentHorizontalAngle + AngleDistanceOfLaserMeasure
+            * idxPtsOneLaser, Description.HorizontalFov) - Description.HorizontalFov / 2;
+        const bool PreprocessResult = RayPreprocessCondition[idxChannel][idxPtsOneLaser];
+
+	    TArray<FHitResult> HitsResult;
+	    if (PreprocessResult && ShootLaser(VertAngle, HorizAngle, HitsResult, TraceParams, idxChannel, ModelMultipleReturn)){
+        uint16_t cnt_hit = 0;
+        for (auto& hitInfo : HitsResult)
+	        WritePointAsync(idxChannel, hitInfo);
+          cnt_hit++;
+        }
+      };
+    });
+  }
+  GetWorld()->GetPhysicsScene()->GetPxScene()->unlockRead();
+
+  FTransform ActorTransf = GetTransform();
+  ComputeAndSaveDetections(ActorTransf);
+
+  const float HorizontalAngle = carla::geom::Math::ToRadians(
+      std::fmod(CurrentHorizontalAngle + AngleDistanceOfTick, Description.HorizontalFov));
+  SemanticLidarData.SetHorizontalAngle(HorizontalAngle);
 }

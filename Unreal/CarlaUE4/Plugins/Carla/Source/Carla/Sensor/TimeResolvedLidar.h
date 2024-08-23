@@ -109,6 +109,10 @@ private:
   FVector GetShootLoc(FVector LidarBodyLoc, FRotator ResultRot, int32 idxChannel);
   int32 GetGroupOfChannel(int32 idxChannel);
 
+  // ShootLaser Override
+  bool ShootLaser(const float VerticalAngle, const float HorizontalAngle, TArray<FHitResult>& HitResults, FCollisionQueryParams& TraceParams, int32 idxChannel, const bool MultiShoot) override;
+  void SimulateLidar(const float DeltaTime) override;
+
   // Transceptor LiDAR
   parametersLiDAR params;
  
