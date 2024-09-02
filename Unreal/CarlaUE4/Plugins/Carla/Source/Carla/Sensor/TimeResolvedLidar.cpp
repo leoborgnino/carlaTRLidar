@@ -284,7 +284,7 @@ void ATimeResolvedLidar::SimulateLidar(const float DeltaTime)
       SemanticLidarData.GetHorizontalAngle());
   const float AngleDistanceOfTick = Description.RotationFrequency * Description.HorizontalFov
       * DeltaTime;
-  const float HorizontalFOVRes = Description.HorizontalFov * Description.RotationFrequency / Description.PointPerSecond;
+  const float HorizontalFOVRes = Description.HorizontalFov * Description.RotationFrequency / Description.PointsPerSecond;
   const uint32_t PointsToScanWithOneLaser = AngleDistanceOfTick / HorizontalFOVRes;
   const float AngleDistanceOfLaserMeasure = AngleDistanceOfTick / PointsToScanWithOneLaser;
   

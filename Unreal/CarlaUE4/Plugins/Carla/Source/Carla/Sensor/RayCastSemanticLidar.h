@@ -76,7 +76,6 @@ protected:
   std::vector<std::vector<bool>> RayPreprocessCondition;
   std::vector<uint32_t> PointsPerChannel;
 
-private:
   FSemanticLidarData SemanticLidarData;
-
+  
 };

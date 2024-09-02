@@ -30,6 +30,7 @@
 #include <compiler/disable-ue4-macros.h>
 #include <carla/sensor/data/LidarData.h>
 #include <compiler/enable-ue4-macros.h>
+#include "Runtime/Core/Public/Async/ParallelFor.h"
 
 #include "TimeResolvedLidar.generated.h"
 
@@ -50,6 +51,12 @@ public:
   virtual void Set(const FActorDescription &Description) override;
   virtual void Set(const FLidarDescription &LidarDescription) override;
 
+  void PreprocessRays(uint32_t Channels, uint32_t MaxPointsPerChannel) override;
+  void ComputeAndSaveDetections(const FTransform& SensorTransform) override;
+  // ShootLaser Override
+  bool ShootLaser(const float VerticalAngle, const float HorizontalAngle, TArray<FHitResult>& HitResults, FCollisionQueryParams& TraceParams, int32 idxChannel, const bool MultiShoot);
+  void SimulateLidar(const float DeltaTime);
+
   virtual void PostPhysTick(UWorld *World, ELevelTick TickType, float DeltaTime);
 
 private:
@@ -57,10 +64,8 @@ private:
   float ComputeIntensity(const FSemanticDetection& RawDetection) const;
   FDetection ComputeDetection(const FHitResult& HitInfo, const FTransform& SensorTransf) const;
 
-  void PreprocessRays(uint32_t Channels, uint32_t MaxPointsPerChannel) override;
   bool PostprocessDetection(FDetection& Detection) const;
 
-  void ComputeAndSaveDetections(const FTransform& SensorTransform) override;
   bool WriteFile(FString Filename, FString String) const;
 
   bool IsCriticalVehicle(FString ActorHitName) const;
@@ -108,10 +113,6 @@ private:
   // Emisor Disposición
   FVector GetShootLoc(FVector LidarBodyLoc, FRotator ResultRot, int32 idxChannel);
   int32 GetGroupOfChannel(int32 idxChannel);
-
-  // ShootLaser Override
-  bool ShootLaser(const float VerticalAngle, const float HorizontalAngle, TArray<FHitResult>& HitResults, FCollisionQueryParams& TraceParams, int32 idxChannel, const bool MultiShoot) override;
-  void SimulateLidar(const float DeltaTime) override;
 
   // Transceptor LiDAR
   parametersLiDAR params;
