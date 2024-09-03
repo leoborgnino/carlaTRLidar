@@ -1,5 +1,4 @@
-// Copyright (c) 2017 Computer Vision Center (CVC) at the Universitat Autonoma
-// de Barcelona (UAB).
+// Time Resolved Lidar Fundación Fulgor
 //
 // This work is licensed under the terms of the MIT license.
 // For a copy, see <https://opensource.org/licenses/MIT>.
@@ -53,6 +52,8 @@ public:
 
   void PreprocessRays(uint32_t Channels, uint32_t MaxPointsPerChannel) override;
   void ComputeAndSaveDetections(const FTransform& SensorTransform) override;
+  void CreateLasers() override;
+
   // ShootLaser Override
   bool ShootLaser(const float VerticalAngle, const float HorizontalAngle, TArray<FHitResult>& HitResults, FCollisionQueryParams& TraceParams, int32 idxChannel, const bool MultiShoot);
   void SimulateLidar(const float DeltaTime);
@@ -114,6 +115,12 @@ private:
   FVector GetShootLoc(FVector LidarBodyLoc, FRotator ResultRot, int32 idxChannel);
   int32 GetGroupOfChannel(int32 idxChannel);
 
+  // Beam Divergence
+  int const BDExtraPoints;
+  
+  float getBD_HAngle(int n_subray);
+  float getBD_VAngle(int n_subray);
+  
   // Transceptor LiDAR
   parametersLiDAR params;
  

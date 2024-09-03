@@ -154,7 +154,7 @@ struct CARLA_API FLidarDescription
 
   /// Num of Max Returns
   UPROPERTY(EditAnywhere)
-  int NumReturnsMax = 2;
+  int NumReturnsMax = 1;
 
   /// Std Dev of noise in intensity
   UPROPERTY(EditAnywhere)
@@ -162,7 +162,7 @@ struct CARLA_API FLidarDescription
 
   /// Model reflectance limits function 
   UPROPERTY(EditAnywhere)
-	bool ModelReflectanceLimitsFunction = false;
+  bool ModelReflectanceLimitsFunction = false;
 
   /// Coefficient a of reflectance limits function-> R(d) = a + b.d^2
   UPROPERTY(EditAnywhere)
