@@ -39,6 +39,9 @@ struct CARLA_API FLidarDescription
   UPROPERTY(EditAnywhere)
   float LowerFovLimit = -30.0f;
   
+  UPROPERTY(EditAnywhere)
+  uint32 LidarVFOVModel = 0;
+
   /// Horizontal field of view
   UPROPERTY(EditAnywhere)
   float HorizontalFov = 360.0f;
