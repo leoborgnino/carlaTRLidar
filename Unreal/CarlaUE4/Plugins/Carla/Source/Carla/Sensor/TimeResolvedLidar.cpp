@@ -308,9 +308,9 @@ void ATimeResolvedLidar::SimulateLidar(const float DeltaTime)
 
   //ResetRecordedHits(ChannelCount, PointsToScanWithOneLaser*Description.NumReturnsMax*BDExtraPoints);
   RecordedHits.resize(ChannelCount);
-  for (int i = 0; i < ChannelCount; ++i) {
+  for (uint16_t i = 0; i < ChannelCount; ++i) {
     RecordedHits[i].resize(PointsToScanWithOneLaser);
-    for (int j = 0; j < PointsToScanWithOneLaser; ++j) {
+    for (uint16_t j = 0; j < PointsToScanWithOneLaser; ++j) {
       RecordedHits[i][j].clear();
       RecordedHits[i][j].reserve(Description.NumReturnsMax*BDExtraPoints);
     }
@@ -329,25 +329,26 @@ void ATimeResolvedLidar::SimulateLidar(const float DeltaTime)
        TraceParams.bTraceComplex = true;
        TraceParams.bReturnPhysicalMaterial = false;
        
-       for (auto idxPtsOneLaser = 0u; idxPtsOneLaser < PointsToScanWithOneLaser; idxPtsOneLaser++) {
-	 const float VertAngle = LaserAngles[idxChannel];
-	 const float HorizAngle = std::fmod(CurrentHorizontalAngle + AngleDistanceOfLaserMeasure
-					    * idxPtsOneLaser, Description.HorizontalFov) - Description.HorizontalFov / 2;
-	 const bool PreprocessResult = RayPreprocessCondition[idxChannel][idxPtsOneLaser];
-	 
-	 TArray<FHitResult> HitsResult;
-	 // pero despues hay que gestionar los multiples hits en el compute detections
-	 for (int ii = 0; ii < 1 + BDExtraPoints; ii++)
-	   if (PreprocessResult && ShootLaser(VertAngle+ii*getBD_VStep(ii), HorizAngle+ii*getBD_H
-					      Step(ii), HitsResult, TraceParams, idxChannel, ModelMultipleReturn)){
-	     uint16_t cnt_hit = 0;
-	     for (auto& hitInfo : HitsResult)
-	       if( !ModelMultipleReturn || cnt_hit < Description.NumReturnsMax ) 
-		 RecordedHits[idxChannel][ii+cnt_hit].emplace_back(hitInfo);
-	     cnt_hit++;
-	   }
-       };
-     });
+       for (auto idxPtsOneLaser = 0u; idxPtsOneLaser < PointsToScanWithOneLaser; idxPtsOneLaser++) 
+       {
+	      const float VertAngle = LaserAngles[idxChannel];
+	      const float HorizAngle = std::fmod(CurrentHorizontalAngle + AngleDistanceOfLaserMeasure* idxPtsOneLaser, Description.HorizontalFov) - Description.HorizontalFov / 2;
+	      const bool PreprocessResult = RayPreprocessCondition[idxChannel][idxPtsOneLaser];
+
+	      TArray<FHitResult> HitsResult;
+	      for (int ii = 0; ii < 1 + BDExtraPoints; ii++)
+	        if (PreprocessResult && ShootLaser(VertAngle+getBD_VAngle(ii), HorizAngle+getBD_HAngle(ii), HitsResult, TraceParams, idxChannel, ModelMultipleReturn))
+          {
+	          uint16_t cnt_hit = 0;
+	          for (auto& hitInfo : HitsResult)
+            {
+	            if( !ModelMultipleReturn || cnt_hit < Description.NumReturnsMax ) 
+		            RecordedHits[idxChannel][ii+cnt_hit].emplace_back(hitInfo);
+              cnt_hit++;
+            } 
+	        }
+      }
+    });
   }
   GetWorld()->GetPhysicsScene()->GetPxScene()->unlockRead();
 
@@ -802,21 +803,6 @@ int32 ATimeResolvedLidar::GetGroupOfChannel(int32 idxChannel){
   }
 
 }
-void ATimeResolvedLidar::CreateLasers()
-{
-  const auto NumberOfLasers = Description.Channels;
-  check(NumberOfLasers > 0u);
-  const float DeltaAngle = NumberOfLasers == 1u ? 0.f :
-    (Description.UpperFovLimit - Description.LowerFovLimit) /
-    static_cast<float>(NumberOfLasers - 1);
-  LaserAngles.Empty(NumberOfLasers);
-  for(auto i = 0u; i < NumberOfLasers; ++i)
-  {
-    const float VerticalAngle =
-        Description.UpperFovLimit - static_cast<float>(i) * DeltaAngle;
-    LaserAngles.Emplace(VerticalAngle);
-  }
-}
 
 // Beam Divergence System
 
@@ -832,19 +818,19 @@ float ATimeResolvedLidar::get_SubrayRing(int n_subray)
 
 float ATimeResolvedLidar::getBD_HAngle(int n_subray)
 {
-  int const CurrentRing = getSubrayRing(n_subray);
+  int const CurrentRing = get_SubrayRing(n_subray);
   float const TotalSubraysRing = int(2*M_PI*CurrentRing);
-  float const AngleStepRing = ( (2 * M_PI) / TotalSubraysRing);
+  float AngleStepRing = ( (2 * M_PI) / TotalSubraysRing);
   
-  return ( Description.BD_hrad * n_subray * math.cos(AngleStepRing)  )
+  return ( Description.BD_hrad * n_subray * cos(AngleStepRing) );
 }
 
 
 float ATimeResolvedLidar::getBD_VAngle(int n_subray)
 {
-  int const CurrentRing = getSubrayRing(n_subray);
+  int const CurrentRing = get_SubrayRing(n_subray);
   float const TotalSubraysRing = int(2*M_PI*CurrentRing);
-  float const AngleStepRing = ( (2 * M_PI) / TotalSubraysRing);
+  float AngleStepRing = ( (2 * M_PI) / TotalSubraysRing);
   
-  return ( Description.BD_hrad * n_subray * math.sin(AngleStepRing)  )
+  return ( Description.BD_hrad * n_subray * sin(AngleStepRing) );
 }

@@ -9,6 +9,11 @@
 #include <string>
 #include <sstream>
 #include <iostream>
+#include <cmath>
+
+#ifndef M_PI
+    #define M_PI 3.14159265358979323846
+#endif
 
 #include "Carla/Actor/ActorDefinition.h"
 #include "Carla/Sensor/LidarDescription.h"
@@ -52,7 +57,6 @@ public:
 
   void PreprocessRays(uint32_t Channels, uint32_t MaxPointsPerChannel) override;
   void ComputeAndSaveDetections(const FTransform& SensorTransform) override;
-  void CreateLasers() override;
 
   // ShootLaser Override
   bool ShootLaser(const float VerticalAngle, const float HorizontalAngle, TArray<FHitResult>& HitResults, FCollisionQueryParams& TraceParams, int32 idxChannel, const bool MultiShoot);
@@ -74,6 +78,7 @@ private:
   bool IsCyclist(FString ActorHitName) const;
 
   FLidarData LidarData;
+  vector<vector<vector<FHitResult>>> RecordedHits; // 3D for multiple detections
 
   /// Enable/Disable general dropoff of lidar points
   bool DropOffGenActive;
@@ -116,8 +121,9 @@ private:
   int32 GetGroupOfChannel(int32 idxChannel);
 
   // Beam Divergence
-  int const BDExtraPoints;
+  int BDExtraPoints;
   
+  float get_SubrayRing(int n_subray);
   float getBD_HAngle(int n_subray);
   float getBD_VAngle(int n_subray);
   

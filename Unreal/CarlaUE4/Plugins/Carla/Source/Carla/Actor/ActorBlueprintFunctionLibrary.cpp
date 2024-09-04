@@ -1098,6 +1098,18 @@ void UActorBlueprintFunctionLibrary::MakeLidarDefinition(
   BeamDivergence.Id = TEXT("beam_divergence");
   BeamDivergence.Type = EActorAttributeType::Int;
   BeamDivergence.RecommendedValues = { TEXT("0") };
+  FActorVariation BD_nrings;
+  BD_nrings.Id = TEXT("beam_divergence_rings");
+  BD_nrings.Type = EActorAttributeType::Int;
+  BD_nrings.RecommendedValues = { TEXT("0") };
+  FActorVariation BD_hrad;
+  BD_hrad.Id = TEXT("beam_divergence_hrad");
+  BD_hrad.Type = EActorAttributeType::Float;
+  BD_hrad.RecommendedValues = { TEXT("3e-3") };
+  FActorVariation BD_vrad;
+  BD_vrad.Id = TEXT("beam_divergence_vrad");
+  BD_vrad.Type = EActorAttributeType::Float;
+  BD_vrad.RecommendedValues = { TEXT("1.5e-3") };
   FActorVariation TransceptorArch;
   TransceptorArch.Id = TEXT("transceptor_arch");
   TransceptorArch.Type = EActorAttributeType::Int;
@@ -1185,6 +1197,9 @@ void UActorBlueprintFunctionLibrary::MakeLidarDefinition(
       ModelWeather,
       TransceptorArch,
       BeamDivergence,
+      BD_nrings,
+      BD_hrad,
+      BD_vrad,
       NumReturnsMax,
       LAMBDA0,
       MAX_RANGE,
@@ -2289,6 +2304,12 @@ void UActorBlueprintFunctionLibrary::SetLidar(
       RetrieveActorAttributeToBool("model_weather", Description.Variations, Lidar.ModelWeather);      
   Lidar.BeamDivergence =
       RetrieveActorAttributeToInt("beam_divergence", Description.Variations, Lidar.BeamDivergence);      
+  Lidar.BD_nrings =
+      RetrieveActorAttributeToInt("beam_divergence_rings", Description.Variations, Lidar.BD_nrings);      
+  Lidar.BD_hrad =
+      RetrieveActorAttributeToFloat("beam_divergence_hrad", Description.Variations, Lidar.BD_hrad);      
+  Lidar.BD_vrad =
+      RetrieveActorAttributeToFloat("beam_divergence_vrad", Description.Variations, Lidar.BD_vrad);      
   Lidar.TransceptorArch =
       RetrieveActorAttributeToInt("transceptor_arch", Description.Variations, Lidar.TransceptorArch);      
   Lidar.ModelMultipleReturn =

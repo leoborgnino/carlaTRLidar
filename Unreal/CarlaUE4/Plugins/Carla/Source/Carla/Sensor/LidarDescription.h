@@ -144,6 +144,15 @@ struct CARLA_API FLidarDescription
   UPROPERTY(EditAnywhere)
   int BeamDivergence = 0;
 
+  UPROPERTY(EditAnywhere)
+  int BD_nrings = 0;
+
+  UPROPERTY(EditAnywhere)
+  float BD_hrad = 3e-3;
+
+  UPROPERTY(EditAnywhere)
+  float BD_vrad = 1.5e-3;
+
   /// Model material in LiDAR
   UPROPERTY(EditAnywhere)
   int TransceptorArch = 0;
