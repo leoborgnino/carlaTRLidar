@@ -915,6 +915,12 @@ std::vector<float> ATimeResolvedLidar::GetVFOVPattern(int LiDARName)
 	}
 	return pandar128;
     }
+  else if (LiDARName == 3) //"pandar40m")
+    return {
+	    15,    11,    8,     5,     3,     2,     1.67,  1.33,  1,     0.67,
+	    0.33,  0,     -0.33, -0.67, -1,    -1.33, -1.67, -2.00, -2.33, -2.67,
+	    -3.00, -3.33, -3.67, -4.00, -4.33, -4.67, -5.00, -5.33, -5.67, -6.00,
+	    -7,    -8,    -9,    -10,   -11,   -12,   -13,   -14,   -19,   -25 };
   else //if (LiDARName == "hdl64")
     {
       std::vector<float> hdl64; 
