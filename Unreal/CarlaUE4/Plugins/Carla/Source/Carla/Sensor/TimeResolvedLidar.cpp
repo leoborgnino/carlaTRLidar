@@ -23,6 +23,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "JsonUtilities.h"
 
+
 FActorDefinition ATimeResolvedLidar::GetSensorDefinition()
 {
   return UActorBlueprintFunctionLibrary::MakeLidarDefinition(TEXT("ray_cast_time_resolved"));
@@ -55,7 +56,10 @@ void ATimeResolvedLidar::Set(const FLidarDescription &LidarDescription)
 {
   Description = LidarDescription;
   LidarData = FLidarData(Description.Channels);
-  CreateLasers();
+  if (Description.LidarVFOVModel == 0)
+    CreateLasersVFOV();
+  else
+    CreateLasersVFOV(GetVFOVPattern(Description.LidarVFOVModel));
   PointsPerChannel.resize(Description.Channels);
   
   BDExtraPoints = Description.BD_nrings*(Description.BD_nrings+1)/2;
@@ -833,4 +837,96 @@ float ATimeResolvedLidar::getBD_VAngle(int n_subray)
   float AngleStepRing = ( (2 * M_PI) / TotalSubraysRing);
   
   return ( Description.BD_hrad * n_subray * sin(AngleStepRing) );
+}
+
+
+// VFOV
+
+void ATimeResolvedLidar::CreateLasersVFOV()
+{
+  const auto NumberOfLasers = Description.Channels;
+  check(NumberOfLasers > 0u);
+  const float DeltaAngle = NumberOfLasers == 1u ? 0.f :
+    (Description.UpperFovLimit - Description.LowerFovLimit) /
+    static_cast<float>(NumberOfLasers - 1);
+  LaserAngles.Empty(NumberOfLasers);
+  for(auto i = 0u; i < NumberOfLasers; ++i)
+  {
+    const float VerticalAngle =
+        Description.UpperFovLimit - static_cast<float>(i) * DeltaAngle;
+    LaserAngles.Emplace(VerticalAngle);
+  }
+}
+
+void ATimeResolvedLidar::CreateLasersVFOV(std::vector<float> angles)
+{
+  check(Description.Channels > 0u);
+  LaserAngles.Empty(Description.Channels);
+  for(uint32 i = 0u; i < Description.Channels; ++i)
+  {
+    const float VerticalAngle = angles[i];
+    LaserAngles.Emplace(VerticalAngle);
+  }
+}
+
+std::vector<float> ATimeResolvedLidar::GetVFOVPattern(int LiDARName)
+{
+  if (LiDARName == 0)// "pandas64")
+  return {		14.882, 11.032, 8.059,   5.057,   3.04,    2.028,  1.86,    1.688,
+			1.522,  1.351,  1.184,   1.013,   -1.184,  -1.351, -1.522,  -1.688,
+			-1.86,  -2.028, -2.198,  -2.365,  -2.536,  -2.7,   -2.873,  0.846,
+			0.675,  0.508,  0.337,   0.169,   0,       -0.169, -0.337,  -0.508,
+			-0.675, -0.845, -1.013,  -3.04,   -3.21,   -3.375, -3.548,  -3.712,
+			-3.884, -4.05,  -4.221,  -4.385,  -4.558,  -4.72,  -4.892,  -5.057,
+			-5.229, -5.391, -5.565,  -5.726,  -5.898,  -6.061, -7.063,  -8.059,
+			-9.06,  -9.885, -11.032, -12.006, -12.974, -13.93, -18.889, -24.897 };
+  else if (LiDARName == 1)// "ruby128")
+    return {
+			-13.565, -1.09,   -4.39, 1.91,  -6.65,   -0.29,  -3.59, 2.71,  -5.79,
+			0.51,    -2.79,   3.51,  -4.99, 1.31,    -1.99,  5.06,  -4.19, 2.11,
+			-19.582, -1.29,   -3.39, 2.91,  -7.15,   -0.49,  -2.59, 3.71,  -5.99,
+			0.31,    -1.79,   5.96,  -5.19, 1.11,    -0.99,  -4.29, 2.01,  -25,
+			-0.19,   -3.49,   2.81,  -7.65, 0.61,    -2.69,  3.61,  -6.09, 1.41,
+			-1.89,   5.46,    -5.29, 2.21,  -16.042, -1.19,  -4.49, 3.01,  -6.85,
+			-0.39,   -3.69,   3.81,  -5.89, 0.41,    -2.89,  6.56,  -5.09, 1.21,
+			-2.09,   -8.352,  -0.69, -3.99, 2.31,    -6.19,  0.11,  -3.19, 3.11,
+			-5.39,   0.91,    -2.39, 3.96,  -4.59,   1.71,   -1.59, 7.41,  -3.79,
+			2.51,    -10.346, -0.89, -2.99, 3.31,    -6.39,  -0.09, -2.19, 4.41,
+			-5.59,   0.71,    -1.39, 11.5,  -4.79,   1.51,   -0.59, -3.89, 2.41,
+			-11.742, 0.21,    -3.09, 3.21,  -6.5,    1.01,   -2.29, 4.16,  -5.69,
+			1.81,    -1.49,   9,     -4.89, 2.61,    -9.244, -0.79, -4.09, 3.41,
+			-6.29,   0.01,    -3.29, 4.71,  -5.49,   0.81,   -2.49, 15,    -4.69,
+			1.61,    -1.69 };
+  else if (LiDARName == 2)//"pandar128")
+    {
+      std::vector<float> pandar128;
+      for (int i = 0; i < 64; i++) {
+		pandar128.push_back(-6 + 0.125 * i);
+	}
+	for (int i = 0; i < 36; i++) {
+		pandar128.push_back(-6.5 - 0.5 * i);
+	}
+	for (int i = 0; i < 24; i++) {
+		pandar128.push_back(2 + 0.5 * i);
+	}
+	for (int i = 0; i < 2; i++) {
+		pandar128.push_back(14 + i);
+		pandar128.push_back(-26 + i);
+	}
+	return pandar128;
+    }
+  else if (LiDARName == 3) //"pandar40m")
+    return {
+	    15,    11,    8,     5,     3,     2,     1.67,  1.33,  1,     0.67,
+	    0.33,  0,     -0.33, -0.67, -1,    -1.33, -1.67, -2.00, -2.33, -2.67,
+	    -3.00, -3.33, -3.67, -4.00, -4.33, -4.67, -5.00, -5.33, -5.67, -6.00,
+	    -7,    -8,    -9,    -10,   -11,   -12,   -13,   -14,   -19,   -25 };
+  else //if (LiDARName == "hdl64")
+    {
+      std::vector<float> hdl64; 
+      for (int i = 0; i < 64; i++) {
+        hdl64.push_back(-24.9 + 0.427 * i);
+      }
+      return hdl64;
+    }
 }
