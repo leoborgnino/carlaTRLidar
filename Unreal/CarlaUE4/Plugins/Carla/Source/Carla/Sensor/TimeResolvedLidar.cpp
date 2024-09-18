@@ -57,9 +57,9 @@ void ATimeResolvedLidar::Set(const FLidarDescription &LidarDescription)
   Description = LidarDescription;
   LidarData = FLidarData(Description.Channels);
   if (Description.LidarVFOVModel == 0)
-    CreateLasers();
+    CreateLasersVFOV();
   else
-    CreateLasers(GetVFOVPattern(Description.LidarName));
+    CreateLasersVFOV(GetVFOVPattern(Description.LidarVFOVModel));
   PointsPerChannel.resize(Description.Channels);
   
   BDExtraPoints = Description.BD_nrings*(Description.BD_nrings+1)/2;
@@ -842,19 +842,34 @@ float ATimeResolvedLidar::getBD_VAngle(int n_subray)
 
 // VFOV
 
-void ARayCastSemanticLidar::CreateLasers(std::vector<float> angles)
+void ATimeResolvedLidar::CreateLasersVFOV()
 {
   const auto NumberOfLasers = Description.Channels;
   check(NumberOfLasers > 0u);
+  const float DeltaAngle = NumberOfLasers == 1u ? 0.f :
+    (Description.UpperFovLimit - Description.LowerFovLimit) /
+    static_cast<float>(NumberOfLasers - 1);
   LaserAngles.Empty(NumberOfLasers);
   for(auto i = 0u; i < NumberOfLasers; ++i)
   {
-    const float VerticalAngle = angles[ii];
+    const float VerticalAngle =
+        Description.UpperFovLimit - static_cast<float>(i) * DeltaAngle;
     LaserAngles.Emplace(VerticalAngle);
   }
 }
 
-std::vector<float> ARayCastSemanticLidar::GetVFOVPattern(int LiDARName)
+void ATimeResolvedLidar::CreateLasersVFOV(std::vector<float> angles)
+{
+  check(Description.Channels > 0u);
+  LaserAngles.Empty(Description.Channels);
+  for(uint32 i = 0u; i < Description.Channels; ++i)
+  {
+    const float VerticalAngle = angles[i];
+    LaserAngles.Emplace(VerticalAngle);
+  }
+}
+
+std::vector<float> ATimeResolvedLidar::GetVFOVPattern(int LiDARName)
 {
   if (LiDARName == 0)// "pandas64")
   return {		14.882, 11.032, 8.059,   5.057,   3.04,    2.028,  1.86,    1.688,
@@ -884,7 +899,7 @@ std::vector<float> ARayCastSemanticLidar::GetVFOVPattern(int LiDARName)
 			1.61,    -1.69 };
   else if (LiDARName == 2)//"pandar128")
     {
-      TArray<float> pandar128;
+      std::vector<float> pandar128;
       for (int i = 0; i < 64; i++) {
 		pandar128.push_back(-6 + 0.125 * i);
 	}
@@ -902,7 +917,7 @@ std::vector<float> ARayCastSemanticLidar::GetVFOVPattern(int LiDARName)
     }
   else //if (LiDARName == "hdl64")
     {
-      TArray<float> hdl64; 
+      std::vector<float> hdl64; 
       for (int i = 0; i < 64; i++) {
         hdl64.push_back(-24.9 + 0.427 * i);
       }

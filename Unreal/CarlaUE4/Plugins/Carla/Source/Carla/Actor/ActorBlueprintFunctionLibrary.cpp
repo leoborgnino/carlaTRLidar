@@ -952,9 +952,9 @@ void UActorBlueprintFunctionLibrary::MakeLidarDefinition(
   HorizontalFOV.RecommendedValues = { TEXT("360.0") };
   // Horizontal FOV.
   FActorVariation LidarVFOVModel;
-  LidarVFOFModel.Id = TEXT("vfov_model");
-  LidarVFOFModel.Type = EActorAttributeType::Int;
-  LidarVFOFModel.RecommendedValues = { TEXT("0") };
+  LidarVFOVModel.Id = TEXT("vfov_model");
+  LidarVFOVModel.Type = EActorAttributeType::Int;
+  LidarVFOVModel.RecommendedValues = { TEXT("0") };
   // Atmospheric Attenuation Rate.
   FActorVariation AtmospAttenRate;
   AtmospAttenRate.Id = TEXT("atmosphere_attenuation_rate");
