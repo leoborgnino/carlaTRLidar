@@ -58,7 +58,10 @@ void ATimeResolvedLidar::Set(const FLidarDescription &LidarDescription)
   CreateLasers();
   PointsPerChannel.resize(Description.Channels);
   
-  BDExtraPoints = Description.BD_nrings*(Description.BD_nrings+1)/2;
+  if(Description.BeamDivergence)
+    BDExtraPoints = Description.BD_nrings*(Description.BD_nrings+1)/2;
+  else
+    BDExtraPoints = 0;
   
   // Warning Remove and use API
   params.LAMBDA0 = Description.LAMBDA0;
@@ -120,7 +123,7 @@ void ATimeResolvedLidar::PostPhysTick(UWorld *World, ELevelTick TickType, float 
   }
 }
 
-ATimeResolvedLidar::FDetection ATimeResolvedLidar::ComputeDetection(const FHitResult& HitInfo, const FTransform& SensorTransf) const
+ATimeResolvedLidar::FDetection ATimeResolvedLidar::ComputeDetection(const FHitResult& HitInfo, const FTransform& SensorTransf)
 {
   auto start = std::chrono::high_resolution_clock::now();
 
@@ -136,107 +139,112 @@ ATimeResolvedLidar::FDetection ATimeResolvedLidar::ComputeDetection(const FHitRe
   float AbsAtm = 1.0;
 
   AbsAtm = GetHitAtmAtt( Distance, Description.AtmospAttenRate, Description.ModelWeather );
-  
-  //MEJORAS DEL MODELO
-  //Efecto del angulo del incidencia
 
+  //Efecto del angulo del incidencia
   if (Description.INTENSITY_CALC)
     {
-
       CosAngle = GetHitCosIncAngle(HitInfo, SensorTransf);
       CosAngle = sqrtf(CosAngle);
-      
       //Efecto de la reflectividad del material
-
       Reflectance = GetHitReflectance(HitInfo);
+      //UE_LOG(LogCarla, Log, TEXT("CosAngle: %f"), CosAngle);
+      //UE_LOG(LogCarla, Log, TEXT("Reflectance: %f"), Reflectance);
+    }
+    //La intensidad del punto tiene en cuenta:
+    //Atenuacion atmosferica -> la intensidad sera menor a mayor distancia
+    //Cos Ang Incidencia -> la intensidad mientras mas perpendicular a la superficie sea el rayo incidente
+    //Reflectividad del material
+  float IntensityNoiseStdDev = Description.NoiseStdDevIntensity;
+  const float IntRec = (CosAngle * AbsAtm * Reflectance ) + RandomEngine->GetNormalDistribution(0.0f, IntensityNoiseStdDev);
 
-      //La intensidad del punto tiene en cuenta:
-      //Atenuacion atmosferica -> la intensidad sera menor a mayor distancia
-      //Cos Ang Incidencia -> la intensidad mientras mas perpendicular a la superficie sea el rayo incidente
-      //Reflectividad del material
-      float IntensityNoiseStdDev = Description.NoiseStdDevIntensity;
-      const float IntRec = (CosAngle * AbsAtm * Reflectance ) + RandomEngine->GetNormalDistribution(0.0f, IntensityNoiseStdDev);
-
-      // Saturacion Intensidad
-      if(IntRec <= 0.99 && IntRec > 0.0)
-	Detection.intensity = IntRec;
-      else if(IntRec > 0.99)
-	Detection.intensity = 0.99;
-      else
-	Detection.intensity = 0.0;
+  // Saturacion Intensidad
+  if(IntRec <= 0.99 && IntRec > 0.0)
+    Detection.intensity = IntRec;
+  else if(IntRec > 0.99)
+    Detection.intensity = 0.99;
+  else
+    Detection.intensity = 0.0;
       
-      if (Description.TRANS_ON){
-	// LiDAR Transceptor
-	vector<float> output_tx;
-	if(Description.TransceptorArch == 0)
-	  output_tx = tx_lidar->run();
-	else
-	  output_tx = tx_lidar_fmcw->run();
-      
-        //UE_LOG(LogCarla, Log, TEXT("TX: %d"), output_tx.size());
-
-	vector<float> output_channel;
-        output_channel = channel_lidar->run(output_tx,Distance,IntRec); // Ojo calcula la intensidad diferente
-
-        //UE_LOG(LogCarla, Log, TEXT("CHANNEL: %d"), output_channel.size());
+  if (Description.TRANS_ON)
+  {
+    // LiDAR Transceptor
+    vector<float> output_tx;
+    if(Description.TransceptorArch == 0)
+      output_tx = tx_lidar->run();
+    else
+      output_tx = tx_lidar_fmcw->run();
         
-	vector<float> output_rx;
-	if(Description.TransceptorArch == 0)
-	  output_rx = rx_lidar->run(output_tx,output_channel);
-	else
-	  output_rx = rx_lidar_fmcw->run(output_tx,output_channel);
-	Detection.time_signal = output_rx;
-	//UE_LOG(LogCarla, Log, TEXT("RX: %d"), output_rx.size());
-      
-	// Calculo de la distancia
-	auto it = max_element(output_rx.begin(),output_rx.end());
-	int max_idx = distance(output_rx.begin(),it);
-	double max_value = *it;
-	double distance = ((max_idx+1-output_tx.size())/(params.RX_FS*params.RX_NOS))*LIGHT_SPEED/2;      // Calculo de la distancia
-	auto vector_proc = (Detection.point*distance);
+    // UE_LOG(LogCarla, Log, TEXT("TX: %d"), output_tx.size());
 
-	// Only Debug
-	if(params.DEBUG_GLOBAL){
-	  if (params.LOG_RX){
-	    //cout << "Punto: " << Detection.point.x << " " << Detection.point.y << " " << Detection.point.z << endl;
-	    //cout << "Punto: " << vector_proc.X << " " << vector_proc.Y << " " << vector_proc.Z << endl;
-	    cout << output_tx.size() << " " << output_channel.size() << " " << endl;
-	    UE_LOG(LogCarla, Log, TEXT("Distancia: %f"), Distance);
-	    cout << "Distancia Receptor: " << distance << endl;
-	    //UE_LOG(LogCarla, Log, TEXT("Vector3: %s"), *(VectorIncidente*distance).ToString());
-	    //UE_LOG(LogCarla, Log, TEXT("Vector: %s"), *VectorIncidente.ToString());
-		  
-	    //UE_LOG(LogCarla, Log, TEXT("Vector2: %s"), *VectorIncidente_t.ToString());
-		  
-	    cout << "******************* Detección ***************" << endl;
-            std::ostringstream oss;
-	    for (auto& i : Detection.time_signal){
-	      cout <<  i << " ";
-              oss << i << ",";
-            }
-            oss << endl;
-	    cout << endl;
-            std::string str = oss.str();
-            FString unrealString(str.c_str());
-            WriteFile("time_signal.txt",unrealString);
-	  }  
-        }  
-        Detection.point.x = vector_proc.x;
-	Detection.point.y = vector_proc.y;
-	Detection.point.z = -vector_proc.z;
+    vector<float> output_channel;
+    output_channel = channel_lidar->run(output_tx,Distance,IntRec);
+
+    // UE_LOG(LogCarla, Log, TEXT("CHANNEL: %d"), output_channel.size());
+          
+    vector<float> output_rx;
+    if(Description.TransceptorArch == 0)
+      output_rx = rx_lidar->run(output_tx,output_channel);
+    else
+      output_rx = rx_lidar_fmcw->run(output_tx,output_channel);
+    Detection.time_signal = output_rx;
+    //UE_LOG(LogCarla, Log, TEXT("RX: %d"), output_rx.size());
         
+    // Calculo de la distancia
+    auto it = max_element(output_rx.begin(),output_rx.end());
+    int max_idx = distance(output_rx.begin(),it);
+    double max_value = *it;
+    double distance = ((max_idx+1-output_tx.size())/(params.RX_FS*params.RX_NOS))*LIGHT_SPEED/2.0;      // Calculo de la distancia
+
+    FVector SensorLocation = SensorTransf.GetLocation(); 
+    //Vector incidente, normalizado, entre sensor y punto de hit con el target
+    FVector VectorIncidente = (HitPoint - SensorLocation).GetSafeNormal(); 
+    auto vector_proc = (VectorIncidente*distance);
+    Detection.point.x = vector_proc[0];
+    Detection.point.y = vector_proc[1];
+    Detection.point.z = vector_proc[2];
+
+    //UE_LOG(LogCarla, Log, TEXT("Calculo distancia: %d %d %f %d %f %f"), max_idx, output_tx.size(), params.RX_FS, params.RX_NOS, LIGHT_SPEED, distance );
+    //UE_LOG(LogCarla, Log, TEXT("Distancia: %f"), Distance);
+    //UE_LOG(LogCarla, Log, TEXT("Distancia Transceptor: %f"), distance);
+
+    // Only Debug
+    // if(params.DEBUG_GLOBAL){
+    //   if (params.LOG_RX){
+    //     //cout << "Punto: " << Detection.point.x << " " << Detection.point.y << " " << Detection.point.z << endl;
+    //     //cout << "Punto: " << vector_proc.X << " " << vector_proc.Y << " " << vector_proc.Z << endl;
+    //     cout << output_tx.size() << " " << output_channel.size() << " " << endl;
+    //     UE_LOG(LogCarla, Log, TEXT("Distancia: %f"), Distance);
+    //     cout << "Distancia Receptor: " << distance << endl;
+    //     //UE_LOG(LogCarla, Log, TEXT("Vector3: %s"), *(VectorIncidente*distance).ToString());
+    //     //UE_LOG(LogCarla, Log, TEXT("Vector: %s"), *VectorIncidente.ToString());
+        
+    //     //UE_LOG(LogCarla, Log, TEXT("Vector2: %s"), *VectorIncidente_t.ToString());
+        
+    //     cout << "******************* Detección ***************" << endl;
+    //           std::ostringstream oss;
+    //     for (auto& i : Detection.time_signal){
+    //       cout <<  i << " ";
+    //             oss << i << ",";
+    //           }
+    //           oss << endl;
+    //     cout << endl;
+    //           std::string str = oss.str();
+    //           FString unrealString(str.c_str());
+    //           WriteFile("time_signal.txt",unrealString);
+    //   }  
+    //       }  
+
+          
       }
-      
-    }
 
-  if(Description.DEBUG_GLOBAL)
-    {
-      using nano = std::chrono::nanoseconds;
-      auto finish = std::chrono::high_resolution_clock::now();
-      std::cout << "RAYCAST ELAPSED: "
-		<< std::chrono::duration_cast<nano>(finish - start).count()
-		<< " nanoseconds\n";
-    }
+    if(Description.DEBUG_GLOBAL)
+      {
+        using nano = std::chrono::nanoseconds;
+        auto finish = std::chrono::high_resolution_clock::now();
+        std::cout << "RAYCAST ELAPSED: "
+      << std::chrono::duration_cast<nano>(finish - start).count()
+      << " nanoseconds\n";
+      }
   return Detection;
 }
 
@@ -261,18 +269,32 @@ bool ATimeResolvedLidar::PostprocessDetection(FDetection& Detection) const
 
 void ATimeResolvedLidar::ComputeAndSaveDetections(const FTransform& SensorTransform) {
   for (auto idxChannel = 0u; idxChannel < Description.Channels; ++idxChannel)
-    PointsPerChannel[idxChannel] = RecordedHits[idxChannel].size();
+  {
+    PointsPerChannel[idxChannel] = 0;
+    for (auto n_hits = 0u; n_hits < RecordedHits[idxChannel].size(); ++n_hits )
+      PointsPerChannel[idxChannel] += RecordedHits[idxChannel][n_hits].size();
+  }
 
   LidarData.ResetMemory(PointsPerChannel);
 
   for (auto idxChannel = 0u; idxChannel < Description.Channels; ++idxChannel) {
     for (auto& channel_hits : RecordedHits[idxChannel]) {
       for (auto& hit : channel_hits ){
-	FDetection Detection = ComputeDetection(hit, SensorTransform);
-	if (PostprocessDetection(Detection))
-	  LidarData.WritePointSync(Detection);	    
-	else
-	  PointsPerChannel[idxChannel]--;
+        // UE_LOG(
+	      //  LogCarla,
+	      //  Warning,
+	      //  TEXT("%s Distancia: %f \n Channel: %d \n Total Channels: %d \n Hits Per Channel: %d \n Hits per Hits: %d"),
+	      //  *GetName(), hit.Distance, idxChannel, Description.Channels,  RecordedHits[idxChannel].size(), channel_hits.size());        
+	      FDetection Detection = ComputeDetection(hit, SensorTransform);
+        // UE_LOG(
+	      // LogCarla,
+	      // Warning,
+	      // TEXT("%s: %f %f %f %f %f %f"),
+	      // *GetName(), Detection.point.x, Detection.point.y, Detection.point.z, Detection.intensity, Detection.time_signal[0],Detection.time_signal[1]);
+	      if (PostprocessDetection(Detection))
+	        LidarData.WritePointSync(Detection);	    
+	      else
+	        PointsPerChannel[idxChannel]--;
       }
     }
   }
@@ -312,11 +334,11 @@ void ATimeResolvedLidar::SimulateLidar(const float DeltaTime)
     RecordedHits[i].resize(PointsToScanWithOneLaser);
     for (uint16_t j = 0; j < PointsToScanWithOneLaser; ++j) {
       RecordedHits[i][j].clear();
-      RecordedHits[i][j].reserve(Description.NumReturnsMax*BDExtraPoints);
+      RecordedHits[i][j].reserve(Description.NumReturnsMax*(1+BDExtraPoints) );
     }
   }
   
-  PreprocessRays(ChannelCount, PointsToScanWithOneLaser*Description.NumReturnsMax*BDExtraPoints);
+  PreprocessRays(ChannelCount, PointsToScanWithOneLaser*Description.NumReturnsMax*(1+BDExtraPoints));
 
   GetWorld()->GetPhysicsScene()->GetPxScene()->lockRead();
   {
@@ -331,21 +353,29 @@ void ATimeResolvedLidar::SimulateLidar(const float DeltaTime)
        
        for (auto idxPtsOneLaser = 0u; idxPtsOneLaser < PointsToScanWithOneLaser; idxPtsOneLaser++) 
        {
+        
 	      const float VertAngle = LaserAngles[idxChannel];
 	      const float HorizAngle = std::fmod(CurrentHorizontalAngle + AngleDistanceOfLaserMeasure* idxPtsOneLaser, Description.HorizontalFov) - Description.HorizontalFov / 2;
 	      const bool PreprocessResult = RayPreprocessCondition[idxChannel][idxPtsOneLaser];
 
+        FHitResult HitResult;
 	      TArray<FHitResult> HitsResult;
 	      for (int ii = 0; ii < 1 + BDExtraPoints; ii++)
-	        if (PreprocessResult && ShootLaser(VertAngle+getBD_VAngle(ii), HorizAngle+getBD_HAngle(ii), HitsResult, TraceParams, idxChannel, ModelMultipleReturn))
+	        if (PreprocessResult && ShootLaser(VertAngle+getBD_VAngle(ii), HorizAngle+getBD_HAngle(ii), HitResult, TraceParams, idxChannel, ModelMultipleReturn))
+          //if (PreprocessResult && ShootLaser(VertAngle, HorizAngle, HitResult, TraceParams, idxChannel, ModelMultipleReturn))
           {
 	          uint16_t cnt_hit = 0;
-	          for (auto& hitInfo : HitsResult)
-            {
+	          //for (auto& hitInfo : HitsResult)
+            //{
+              // UE_LOG(
+	            //  LogCarla,
+	            //  Warning,
+	            //  TEXT("%s Distancia: %f %d %f %f"),
+	            //  *GetName(), HitResult.Distance, cnt_hit, VertAngle+getBD_VAngle(ii), HorizAngle+getBD_HAngle(ii));
 	            if( !ModelMultipleReturn || cnt_hit < Description.NumReturnsMax ) 
-		            RecordedHits[idxChannel][ii+cnt_hit].emplace_back(hitInfo);
+		            RecordedHits[idxChannel][ii+cnt_hit].emplace_back(HitResult);
               cnt_hit++;
-            } 
+            //} 
 	        }
       }
     });
@@ -360,6 +390,42 @@ void ATimeResolvedLidar::SimulateLidar(const float DeltaTime)
   SemanticLidarData.SetHorizontalAngle(HorizontalAngle);
 }
 
+
+bool ATimeResolvedLidar::ShootLaser(const float VerticalAngle, const float HorizontalAngle, FHitResult& HitResult, FCollisionQueryParams& TraceParams, int32 idxChannel,const bool ModelMultipleReturn) const
+{
+  TRACE_CPUPROFILER_EVENT_SCOPE_STR(__FUNCTION__);
+
+  FHitResult HitInfo(ForceInit);
+
+  FTransform ActorTransf = GetTransform();
+  FVector LidarBodyLoc = ActorTransf.GetLocation();
+  FRotator LidarBodyRot = ActorTransf.Rotator();
+
+  FRotator LaserRot (VerticalAngle, HorizontalAngle, 0);  // float InPitch, float InYaw, float InRoll
+  FRotator ResultRot = UKismetMathLibrary::ComposeRotators(
+    LaserRot,
+    LidarBodyRot
+  );
+
+  const auto Range = Description.Range;
+  FVector EndTrace = Range * UKismetMathLibrary::GetForwardVector(ResultRot) + LidarBodyLoc;
+
+  GetWorld()->ParallelLineTraceSingleByChannel(
+    HitInfo,
+    LidarBodyLoc,
+    EndTrace,
+    ECC_GameTraceChannel2,
+    TraceParams,
+    FCollisionResponseParams::DefaultResponseParam
+  );
+
+  if (HitInfo.bBlockingHit) {
+    HitResult = HitInfo;
+    return true;
+  } else {
+    return false;
+  }
+}
 
 bool ATimeResolvedLidar::ShootLaser(const float VerticalAngle, const float HorizontalAngle, TArray<FHitResult>& HitResults, FCollisionQueryParams& TraceParams, int32 idxChannel, const bool MultiShoot)
 {
@@ -425,15 +491,27 @@ bool ATimeResolvedLidar::ShootLaser(const float VerticalAngle, const float Horiz
       TimeTrace = TimeStampEnd - TimeStampStart;
     }
 
-  // Get Distances from Hits
-  TArray<float> DistanceTraces;
-  uint32_t cnt_hit = 0;
+
   bool state_hits = true;
+  
+  // Get Distances from Hits
+  /*
+  TArray<float> DistanceTraces;
+  */
+  uint32_t cnt_hit = 0;
   for (const auto& hitInfo : HitResults) 
     { 
       float DistanceTrace = GetHitDistance(hitInfo,ActorTransf);
-      DistanceTraces.Add(DistanceTrace);
+      //DistanceTraces.Add(DistanceTrace);
+      // UE_LOG(
+      // LogCarla,
+	    // Warning,
+	    // TEXT("%s Distancia: %f %d"),
+	    // *GetName(),DistanceTrace, cnt_hit);
+      cnt_hit++;
+    }
 
+    /*
       if(Description.DEBUG_GLOBAL)
 	{
 	  // Log Time/Distance
@@ -446,20 +524,30 @@ bool ATimeResolvedLidar::ShootLaser(const float VerticalAngle, const float Horiz
 	  WriteFile(NameLogFile,DistLog);
 	  WriteFile(NameLogFile,TimeLog);
 	}
+  }
+  */
 
-      //eliminar puntos que son del vehiculo recolector de datos WARNING
-      if(UnderMinimumReturnDistance(hitInfo,ActorTransf))
-	state_hits = false;
+  // Blocking Removed: I think I don't care in multiple returns
+  //eliminar puntos que son del vehiculo recolector de datos WARNING
+  //if (HitResults[0].bBlockingHit )
+  //{
+  if (!(Description.TRANS_ON))
+    if(UnderMinimumReturnDistance(HitResults[0],ActorTransf))
+      state_hits = false;
+  if (!(Description.TRANS_ON) && (Description.INTENSITY_CALC) )
+    {
+    //determinar si el punto corresponde a una reflectancia detectable
+    if(!CheckDetectableReflectance(HitResults[0],ActorTransf))
+    state_hits = false;
+     }
+  //}
+  //else
+  //  state_hits = false;
+   //
+   //{
+   //}
 
-      //determinar si el punto corresponde a una reflectancia detectable
-      if(!CheckDetectableReflectance(hitInfo,ActorTransf))
-	state_hits = false;
 
-      // Blocking Removed: I think I don't care in multiple returns
-      //if (hitInfo.bBlockingHit) {
-      //  HitResult = hitInfo;
-      //}
-    }
   return state_hits;
 }
 
@@ -498,12 +586,55 @@ float ATimeResolvedLidar::GetHitCosIncAngle(const FHitResult& HitInfo, const FTr
   return CosAngle;
 }
 
-float ATimeResolvedLidar::GetHitReflectance( const FHitResult& HitInfo ) const
+
+//REMOVE
+// Función para escribir en el archivo si el string es nuevo
+void ATimeResolvedLidar::WriteIfUnique(const std::string& newString, const std::string& filePath, std::set<std::string>& uniqueStrings)
+{
+    // Verificar si el string ya está en la lista
+    if (uniqueStrings.find(newString) == uniqueStrings.end())
+    {
+        // Si no está, añadirlo al set y escribirlo en el archivo
+        uniqueStrings.insert(newString);
+        UE_LOG(LogCarla, Warning, TEXT("Material: %s"), *FString(newString.c_str()));
+    }
+}
+// REMOVE
+
+float ATimeResolvedLidar::GetHitReflectance( const FHitResult& HitInfo )
 {
   AActor* ActorHit = HitInfo.GetActor();
   FString ActorHitName = ActorHit->GetName();
   
   float Reflectance = 1.0;
+
+  FString MaterialNameHit = GetHitMaterialName(HitInfo);
+
+  UPrimitiveComponent* HitComponent = HitInfo.Component.Get();
+    if (HitComponent)
+    {
+        UMaterialInterface* HitMaterial = HitComponent->GetMaterial(0);  // Índice del material (0 para el primer material)
+        if (HitMaterial)
+        {
+            FString MaterialName = HitMaterial->GetName();
+            std::string filePath = "D:/CARLA/lidar-systems-level/CARLA_scripts/output_materials.txt";
+            std::string StandardString = TCHAR_TO_UTF8(*MaterialName);
+            WriteIfUnique(StandardString, filePath, uniqueStrings);
+            UE_LOG(LogCarla, Warning, TEXT("Material: %s"), *MaterialName);
+        }
+        else
+        {
+            //UE_LOG(LogCarla, Log, TEXT("Material: None"));
+        }
+    }
+  
+  // UE_LOG(
+  // LogCarla,
+	// Warning,
+	// TEXT("%s Material: %s %s"),
+	// *GetName(),*MaterialNameHit, HitInfo.Component->CustomDepthStencilValue);
+
+
   
   //Segun si el nombre del actor, corresponde a un actor al cual computar su material
   bool CriticalVehicle = IsCriticalVehicle(ActorHitName);
@@ -723,7 +854,7 @@ bool ATimeResolvedLidar::CheckDetectableReflectance(const FHitResult& HitInfo,co
 bool ATimeResolvedLidar::UnderMinimumReturnDistance(const FHitResult& HitInfo,const FTransform& SensorTransf){
   //descartar puntos que estan por debajo de la minima
   float Distance = GetHitDistance(HitInfo,SensorTransf);
-  float MinimumReturnDistance = 2.5;
+  float MinimumReturnDistance = 0.5;
 
   return (Distance <= MinimumReturnDistance);
 }
@@ -818,19 +949,29 @@ float ATimeResolvedLidar::get_SubrayRing(int n_subray)
 
 float ATimeResolvedLidar::getBD_HAngle(int n_subray)
 {
-  int const CurrentRing = get_SubrayRing(n_subray);
-  float const TotalSubraysRing = int(2*M_PI*CurrentRing);
-  float AngleStepRing = ( (2 * M_PI) / TotalSubraysRing);
-  
-  return ( Description.BD_hrad * n_subray * cos(AngleStepRing) );
+  if(Description.BeamDivergence)
+  {
+    int const CurrentRing = get_SubrayRing(n_subray);
+    float const TotalSubraysRing = int(2*M_PI*CurrentRing);
+    float AngleStepRing = ( (2 * M_PI) / TotalSubraysRing);
+    
+    return ( Description.BD_hrad * n_subray * cos(AngleStepRing) );
+  }
+  else
+    return 0;
 }
 
 
 float ATimeResolvedLidar::getBD_VAngle(int n_subray)
 {
-  int const CurrentRing = get_SubrayRing(n_subray);
-  float const TotalSubraysRing = int(2*M_PI*CurrentRing);
-  float AngleStepRing = ( (2 * M_PI) / TotalSubraysRing);
-  
-  return ( Description.BD_hrad * n_subray * sin(AngleStepRing) );
+  if(Description.BeamDivergence)
+  {
+    int const CurrentRing = get_SubrayRing(n_subray);
+    float const TotalSubraysRing = int(2*M_PI*CurrentRing);
+    float AngleStepRing = ( (2 * M_PI) / TotalSubraysRing);
+    
+    return ( Description.BD_hrad * n_subray * sin(AngleStepRing) );
+  }
+  else
+    return 0;
 }

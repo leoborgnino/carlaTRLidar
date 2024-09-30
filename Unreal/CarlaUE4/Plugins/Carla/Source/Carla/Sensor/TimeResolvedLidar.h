@@ -60,6 +60,7 @@ public:
 
   // ShootLaser Override
   bool ShootLaser(const float VerticalAngle, const float HorizontalAngle, TArray<FHitResult>& HitResults, FCollisionQueryParams& TraceParams, int32 idxChannel, const bool MultiShoot);
+  bool ShootLaser(const float VerticalAngle, const float HorizontalAngle, FHitResult& HitResult, FCollisionQueryParams& TraceParams, int32 idxChannel, const bool ModelMultipleReturn) const;
   void SimulateLidar(const float DeltaTime);
 
   virtual void PostPhysTick(UWorld *World, ELevelTick TickType, float DeltaTime);
@@ -67,7 +68,7 @@ public:
 private:
   /// Compute the received intensity of the point
   float ComputeIntensity(const FSemanticDetection& RawDetection) const;
-  FDetection ComputeDetection(const FHitResult& HitInfo, const FTransform& SensorTransf) const;
+  FDetection ComputeDetection(const FHitResult& HitInfo, const FTransform& SensorTransf);
 
   bool PostprocessDetection(FDetection& Detection) const;
 
@@ -107,7 +108,7 @@ private:
   
   FString GetHitMaterialName(const FHitResult& HitInfo) const;
   float GetHitCosIncAngle(const FHitResult& HitInfo, const FTransform& SensorTransf) const;
-  float GetHitReflectance( const FHitResult& HitInfo ) const;
+  float GetHitReflectance( const FHitResult& HitInfo );
   float GetMaterialReflectanceValue(FString MaterialName) const;
   float GetHitDistance(const FHitResult& HitInfo,const FTransform& SensorTransf) const;
   float GetHitAtmAtt(const float Distance, const float AttenAtmRate,const int mode) const;
@@ -135,5 +136,10 @@ private:
   ChannelLidar *  channel_lidar;
   RxLidarPulsed * rx_lidar;
   RxLidarFMCW * rx_lidar_fmcw;
+
+
+  // REMOVE
+  std::set<std::string> uniqueStrings;
+  void WriteIfUnique(const std::string& newString, const std::string& filePath, std::set<std::string>& uniqueStrings);
 
 };

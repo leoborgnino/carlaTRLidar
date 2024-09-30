@@ -122,7 +122,7 @@ struct CARLA_API FLidarDescription
   float PRX = 1.0f;
   
   UPROPERTY(EditAnywhere)
-  float RPD = 0.8f;
+  float RPD = 0.0f;
   
   UPROPERTY(EditAnywhere)
   float RX_FS = 2e9f;
