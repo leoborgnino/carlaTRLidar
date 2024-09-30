@@ -120,6 +120,9 @@ private:
   // Emisor Disposición
   FVector GetShootLoc(FVector LidarBodyLoc, FRotator ResultRot, int32 idxChannel);
   int32 GetGroupOfChannel(int32 idxChannel);
+  void CreateLasersVFOV(std::vector<float> angles);
+  void CreateLasersVFOV();
+  std::vector<float> GetVFOVPattern(int LiDARName);
 
   // Beam Divergence
   int BDExtraPoints;
