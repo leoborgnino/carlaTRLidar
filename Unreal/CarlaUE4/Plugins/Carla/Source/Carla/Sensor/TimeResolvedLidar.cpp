@@ -601,7 +601,17 @@ void ATimeResolvedLidar::WriteIfUnique(const std::string& newString, const std::
         // Si no está, añadirlo al set y escribirlo en el archivo
         uniqueStrings.insert(newString);
         UE_LOG(LogCarla, Warning, TEXT("Material: %s"), *FString(newString.c_str()));
+        std::ofstream outFile(filePath, std::ios::app);
+        if (outFile.is_open())
+        {
+            outFile << newString << std::endl;
+            outFile.close();
+        }
     }
+    // else
+    // {
+    //     UE_LOG(LogCarla, Warning, TEXT("Material Not Added: %s"), *FString(newString.c_str()));
+    // }
 }
 // REMOVE
 
@@ -611,34 +621,6 @@ float ATimeResolvedLidar::GetHitReflectance( const FHitResult& HitInfo )
   FString ActorHitName = ActorHit->GetName();
   
   float Reflectance = 1.0;
-
-  FString MaterialNameHit = GetHitMaterialName(HitInfo);
-
-  UPrimitiveComponent* HitComponent = HitInfo.Component.Get();
-    if (HitComponent)
-    {
-        UMaterialInterface* HitMaterial = HitComponent->GetMaterial(0);  // Índice del material (0 para el primer material)
-        if (HitMaterial)
-        {
-            FString MaterialName = HitMaterial->GetName();
-            std::string filePath = "D:/CARLA/lidar-systems-level/CARLA_scripts/output_materials.txt";
-            std::string StandardString = TCHAR_TO_UTF8(*MaterialName);
-            WriteIfUnique(StandardString, filePath, uniqueStrings);
-            UE_LOG(LogCarla, Warning, TEXT("Material: %s"), *MaterialName);
-        }
-        else
-        {
-            //UE_LOG(LogCarla, Log, TEXT("Material: None"));
-        }
-    }
-  
-  // UE_LOG(
-  // LogCarla,
-	// Warning,
-	// TEXT("%s Material: %s %s"),
-	// *GetName(),*MaterialNameHit, HitInfo.Component->CustomDepthStencilValue);
-
-
   
   //Segun si el nombre del actor, corresponde a un actor al cual computar su material
   bool CriticalVehicle = IsCriticalVehicle(ActorHitName);
@@ -648,15 +630,35 @@ float ATimeResolvedLidar::GetHitReflectance( const FHitResult& HitInfo )
       FString MaterialNameHit = GetHitMaterialName(HitInfo);
       //Si el actor corresponde a un ciclista y no se obtiene material, coresponde a la parte de la persona
       if(IsCyclist(ActorHitName) && (MaterialNameHit.Compare("NoMaterial") == 0))
-	Reflectance = GetMaterialReflectanceValue(TEXT("Pedestrian"));
+	      Reflectance = GetMaterialReflectanceValue(TEXT("Pedestrian"));
       else
-	Reflectance = GetMaterialReflectanceValue(MaterialNameHit);
+	      Reflectance = GetMaterialReflectanceValue(MaterialNameHit);
     }
   else if(IsPedestrian(ActorHitName))
     Reflectance = GetMaterialReflectanceValue(TEXT("Pedestrian"));
   else
+  {
+    UPrimitiveComponent* HitComponent = HitInfo.Component.Get();
+    if (HitComponent)
+    {
+        UMaterialInterface* HitMaterial = HitComponent->GetMaterial(0);  // Índice del material (0 para el primer material)
+        if (HitMaterial)
+        {
+            // FString MaterialName = HitMaterial->GetName();
+            // std::string filePath = "D:/CARLA/lidar-systems-level/CARLA_scripts/output_materials.txt";
+            // std::string StandardString = TCHAR_TO_UTF8(*MaterialName);
+            // WriteIfUnique(StandardString, filePath, uniqueStrings);
+            // UE_LOG(LogCarla, Warning, TEXT("Material: %s"), *MaterialName);
+            Reflectance = GetMaterialReflectanceValue(HitMaterial->GetName());
+        }
+        else
+        {
+          Reflectance = GetMaterialReflectanceValue(TEXT("NoMaterial"));
+          //UE_LOG(LogCarla, Log, TEXT("Material: None"));
+        }
+    }
+  }
     //Se le asigna una reflectivdad por defeto a los materiales no criticos
-    Reflectance = GetMaterialReflectanceValue(TEXT("NoMaterial"));
 
   return Reflectance;
 }
